@@ -121,14 +121,13 @@ del colloc_bert_embeddings, sampled_collocs
 
 
 #### Now we got to add some noise to the memory matrix (parameter L)
-L = 0.6 # 0.6 is what the meta paper says
+L = 0.5 # 0.6 is what the meta paper says
 # noise between 0 and 1
 
 noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
 
 noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
 
-print(noisy_mem, noisy_mem.shape)
 
 class Minerva2(object):
     '''
@@ -142,19 +141,22 @@ class Minerva2(object):
         else:
             assert F is not None, "You need to specify the number of features"
     
-    def probe(self, probe, tau=1.0):
-        similarity = torch.cosine_similarity(probe, self.Mat, dim=0)
-        #similarity is always the same tensor why???? 
-        activation = similarity**tau
+    def activate(self, probe, tau=1.0):
+        similarity = torch.cosine_similarity(probe, self.Mat, dim=1) # had the wrong axis
+        activation = (similarity**tau) * torch.sign(similarity)  # make sure we preserve the signs
         return activation
 
-    def recognize(self, probe, tau=1.0, k=0.99, maxiter=4):
-        activation = self.probe(probe, tau)
-        big = torch.max(activation)
-        if big < k and tau < maxiter: 
-            activation, tau = self.recognize(probe, tau+1, k, maxiter)
-            #self.recognize(probe, tau+1, k, maxiter)
-        return torch.max(activation), tau
+    def echo(self, probe, tau=1.0):
+        activation = self.activate(probe, tau)
+        return torch.tensordot(activation, self.Mat, dims=([0], [0]))
+
+    def recognize(self, probe, tau=1.0, k=0.99, maxiter=10000):
+        echo = self.echo(probe, tau)
+        similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
+        big = torch.max(similarity)
+        if big < k and tau < maxiter:
+            _, tau = self.recognize(probe, tau+1, k, maxiter)
+        return big, tau
         
 
 
@@ -164,8 +166,8 @@ output = []
 
 for item, vector in colloc2BERT.items():
     act, rt = minz.recognize(vector)
-    print("appending to output" + item)
     output.append([item, act, rt])
+    print(output[-1])
 #act, rt = minz.recognize(colloc2BERT['chase dream'])
-print(output)
+#print(output)
 
