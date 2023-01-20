@@ -39,6 +39,8 @@ import pickle # for saving and loading objects
 from transformers import AutoTokenizer, AutoModel
 from exract_embeddings import get_word_vector # for BERT embeddings
 
+import csv
+
 # set random seeds for reproducibility
 
 random.seed(40)
@@ -123,11 +125,9 @@ del colloc_bert_embeddings, sampled_collocs
 #### Now we got to add some noise to the memory matrix (parameter L)
 L = 0.5 # 0.6 is what the meta paper says
 # noise between 0 and 1
-
 noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
 
 noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
-
 
 class Minerva2(object):
     '''
@@ -135,7 +135,7 @@ class Minerva2(object):
     '''
     def __init__(self, F=None, M=None, Mat=None):
         if Mat is not None:
-            self.Mat = Mat
+            self.Mat = Mat.double() 
             self.M = Mat.shape[0]
             self.F = Mat.shape[1]
         else:
@@ -143,31 +143,46 @@ class Minerva2(object):
     
     def activate(self, probe, tau=1.0):
         similarity = torch.cosine_similarity(probe, self.Mat, dim=1) # had the wrong axis
+        print(similarity)
         activation = (similarity**tau) * torch.sign(similarity)  # make sure we preserve the signs
         return activation
 
     def echo(self, probe, tau=1.0):
         activation = self.activate(probe, tau)
-        return torch.tensordot(activation, self.Mat, dims=([0], [0]))
+        return torch.tensordot(activation, self.Mat, dims=([0], [0])) 
 
-    def recognize(self, probe, tau=1.0, k=0.99, maxiter=10000):
+    def recognize(self, probe, tau=1.0, k=0.99, maxiter=1000):
         echo = self.echo(probe, tau)
         similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
         big = torch.max(similarity)
+        print(big, tau)
         if big < k and tau < maxiter:
             _, tau = self.recognize(probe, tau+1, k, maxiter)
         return big, tau
         
 
-
 minz = Minerva2(Mat=noisy_mem) 
 output = [] 
 
-
 for item, vector in colloc2BERT.items():
+    item = 'forget dream'
+    vector = colloc2BERT['forget dream']
     act, rt = minz.recognize(vector)
     output.append([item, act, rt])
-    print(output[-1])
+    print(output[-1]) # print the last item in the list (the one we just appended)
+
+
 #act, rt = minz.recognize(colloc2BERT['chase dream'])
 #print(output)
+
+# write the output to a csv file
+
+with open('output.csv', 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerows(output)
+
+
+
+
+
 
