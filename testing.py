@@ -15,9 +15,9 @@
 # this file contains the code for the MINERVA2 model, a simulation model
 # of human memory, which we are using to investigate collocational processing. 
 # The model accounts for data from both episodic and semantic memory from a single 
-# system. Theoretically speaking, the model is concerned with long-term memory
-# while also assuming a short-term memory system that can communicate with the 
-# long-term memory system. The two memory systems communicate with each other. 
+# system. Theoretically speaking, the model comprises a long-term memory system
+# as well as a short-term memory system that can communicate with the 
+# each other. The long-term memory system is a matrix of M x N, where M is the 
 # The short-term memory system can send a "probe" to the long-term memory system
 # and the long-term memory system can reply with an "echo". 
 
@@ -38,8 +38,9 @@ import os  # for file management
 import pickle # for saving and loading objects
 from transformers import AutoTokenizer, AutoModel
 from exract_embeddings import get_word_vector # for BERT embeddings
+import matplotlib.pyplot as plt # for plotting
 
-import csv
+import csv as csv # for reading in the dataset, etc.
 
 # set random seeds for reproducibility
 
@@ -48,7 +49,7 @@ torch.manual_seed(42)
 
 ## read in the dataset
 
-df = pd.read_csv("FinalDataset.csv") # same dataset as MSc project
+df = pd.read_csv("stimuli.csv") # same dataset as MSc project
 dataset = list(df['item']) # list of items
 print('loaded the dataset')
 
@@ -152,7 +153,7 @@ class Minerva2(object):
         activation = self.activate(probe, tau)
         return torch.tensordot(activation, self.Mat, dims=([0], [0])) 
 
-    def recognize(self, probe, tau=1.0, k=0.955, maxiter=300):
+    def recognize(self, probe, tau=1.0, k=0.955, maxiter=450): # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
         echo = self.echo(probe, tau)
         similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
         big = torch.max(similarity)
