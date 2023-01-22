@@ -55,7 +55,7 @@ print('loaded the dataset')
 
 M = 10000 
 
-if not os.path.isfile('colloc2BERT.dat'):
+if not os.path.isfile('colloc2BERT-SC-Stimuli.dat'):
 
     # set up the model
     #
