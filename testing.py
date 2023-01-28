@@ -190,28 +190,30 @@ for s in seed:
     torch.manual_seed(s)
     print(f"\nBegin simulation: 99 L1 Subjects\n---------------------------------")
 
-    for item, vector in colloc2BERT.items():
-        print(f"Participant {p+1} | Seed {s}  \n----------------------------------")
-        #vector = colloc2BERT['forget dream']
-        act, rt = minz.recognize(vector)
-        output.append([item, act, rt])
-        print(output[-1]) # print the last item in the list (the one we just appended)
+    for p in range(n):
 
-# set up a dataframe to write the current results to a uniquely-named CSV file
+        for item, vector in colloc2BERT.items():
+            print(f"Participant {p+1} | Seed {s}  \n----------------------------------")
+            #vector = colloc2BERT['forget dream']
+            act, rt = minz.recognize(vector)
+            output.append([item, act, rt])
+            print(output[-1]) # print the last item in the list (the one we just appended)
 
-        results_l1 = pd.DataFrame(data = {"mode": 'l1', 
-                                        "id": [s],
-                                        "item": [item],
-                                        "act": [act],
-                                        "rt": [rt]}) 
-        if n == 0:
-        # delete the file if it exists and write the dataframe with column names to the top of the new file
-            results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
+    # set up a dataframe to write the current results to a uniquely-named CSV file
 
-        else:
-        # append the dataframe to the existing file without column names
-            results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
-            print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+            results_l1 = pd.DataFrame(data = {"mode": 'l1', 
+                                            "id": [s],
+                                            "item": [item],
+                                            "act": [act],
+                                            "rt": [rt]}) 
+            if n == 0:
+            # delete the file if it exists and write the dataframe with column names to the top of the new file
+                results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
+
+            else:
+            # append the dataframe to the existing file without column names
+                results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
+                print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
 print("********************************\n\nAll done!\n\n********************************")
 #act, rt = minz.recognize(colloc2BERT['chase dream'])
