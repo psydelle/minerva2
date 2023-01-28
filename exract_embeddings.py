@@ -22,7 +22,7 @@ def get_hidden_states(encoded, model, layers):
     # Stack and sum all requested layers
     output = torch.stack([states[i] for i in layers]).sum(0).squeeze()
     # Only select the tokens that constitute the requested word
-    word_tokens_output = output[0:2, :]
+    word_tokens_output = output[1:3, :]
 
     return word_tokens_output.mean(dim=0)
 
