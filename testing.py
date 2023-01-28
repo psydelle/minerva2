@@ -51,7 +51,17 @@ torch.manual_seed(42)
 
 df = pd.read_csv("stimuli.csv") # same dataset as MSc project
 dataset = list(df['item']) # list of items
-print('loaded the dataset')
+fcoll = list(df['fcoll'].str.replace(r'\D', '')) # list of collocation frequencies
+
+
+## convert the collocational frequencies to a list of floats
+
+fcoll = [float(i) for i in fcoll]
+
+## let's normalize fcoll to be between 0 and 1
+normalized_fcoll = [float(i)/sum(fcoll) for i in fcoll]
+
+print('loaded the dataset and normalized the collocational frequencies')
 
 M = 10000 
 
@@ -96,14 +106,13 @@ else:
 colloc_bert_embeddings = torch.stack(list(colloc2BERT.values())) # stack the embeddings into a tensor
 
 # sample from the collocations to make a M x 768 matrix
-sampled_collocs = torch.stack(random.choices(colloc_bert_embeddings, k=M-len(colloc_bert_embeddings)))
+sampled_collocs = torch.stack(random.choices(colloc_bert_embeddings, k=M-len(colloc_bert_embeddings), weights=normalized_fcoll))
 matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
 assert matrix.size() == (M, 768), "Huh?"
 
 # Ivan's pedantic memory optimizations: since the concat we do not need the 
 # original tensors anymore because they have been copied when matrix was made
 del colloc_bert_embeddings, sampled_collocs
-
 
 
 # Obsolete, does the same as above:
@@ -162,28 +171,54 @@ class Minerva2(object):
         return big, tau
         
 
-minz = Minerva2(Mat=noisy_mem) 
-output = [] 
+#### Let's run our experiment. First we generate random seeds to simulate 99 l1 participants from Souza and Chalmers (2021)
+n = 99 # sample size
+p = 0
+seed = []
+for s in range(n):
+    seed.append(random.randint(0, 9999999))
 
-for item, vector in colloc2BERT.items():
-    #item = 'forget dream'
-    #vector = colloc2BERT['forget dream']
-    act, rt = minz.recognize(vector)
-    output.append([item, act, rt])
-    print(output[-1]) # print the last item in the list (the one we just appended)
+## Now we run the experiment
+
+minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
+output = [] # initialize an empty list to store the output
 
 
+for s in seed:
+    #print(f"\nSeed {s}\n")
+    random.seed(s)
+    torch.manual_seed(s)
+    print(f"\nBegin simulation: 99 L1 Subjects\n---------------------------------")
+
+    for item, vector in colloc2BERT.items():
+        print(f"Participant {p+1} | Seed {s}  \n----------------------------------")
+        #vector = colloc2BERT['forget dream']
+        act, rt = minz.recognize(vector)
+        output.append([item, act, rt])
+        print(output[-1]) # print the last item in the list (the one we just appended)
+
+# set up a dataframe to write the current results to a uniquely-named CSV file
+
+        results_l1 = pd.DataFrame(data = {"mode": 'l1', 
+                                        "id": [s],
+                                        "item": [item],
+                                        "act": [act],
+                                        "rt": [rt]}) 
+        if n == 0:
+        # delete the file if it exists and write the dataframe with column names to the top of the new file
+            results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
+
+        else:
+        # append the dataframe to the existing file without column names
+            results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
+            print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+
+print("********************************\n\nAll done!\n\n********************************")
 #act, rt = minz.recognize(colloc2BERT['chase dream'])
 #print(output)
 
 # write the output to a csv file
 
-with open('output.csv', 'w', newline='') as csvfile:
+""" with open('output.csv', 'w', newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerows(output)
-
-
-
-
-
-
+    writer.writerows(output) """
