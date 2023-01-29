@@ -193,7 +193,7 @@ for p, s in enumerate(seed):
         #vector = colloc2BERT['forget dream']
         act, rt = minz.recognize(vector)
         output.append([item, act, rt])
-        print(output[-1]) # print the last item in the list (the one we just appended)
+        print(f"{output[-1]} \n----------------------------------") # print the last item in the list (the one we just appended)
 
 # set up a dataframe to write the current results to a uniquely-named CSV file
 
@@ -209,7 +209,8 @@ for p, s in enumerate(seed):
         else:
         # append the dataframe to the existing file without column names
             results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
-            print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+            
+    print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
 print("********************************\n\nAll done!\n\n********************************")
 
