@@ -51,14 +51,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 ## read in the dataset
-
 df = pd.read_csv("stimuli.csv") # same dataset as MSc project
 dataset = list(df['item']) # list of items
 fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
 
-
 ## convert the collocational frequencies to a list of floats
-
 fcoll = [float(i) for i in fcoll]
 
 ## let's normalize fcoll to be between 0 and 1
@@ -70,8 +67,7 @@ M = 10000
 
 if not os.path.isfile('colloc2BERT-SC-Stimuli.dat'):
 
-    # set up the model
-    #
+    # set up the model and tokenizer for BERT embeddings
     def get_bert(mod_name="distilbert-base-uncased"): 
         tokenizer = AutoTokenizer.from_pretrained(mod_name)
         model = AutoModel.from_pretrained(mod_name, output_hidden_states=True) 
@@ -81,8 +77,6 @@ if not os.path.isfile('colloc2BERT-SC-Stimuli.dat'):
         return get_word_vector(colloc, tokenizer, model, layers) 
 
     # grab BERT embeddings for the items in the dataset
-    #
-    
     colloc2BERT = dict()
     tokenizer, model = get_bert() 
 
@@ -191,12 +185,12 @@ for s in seed:
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
-    print("\nBegin simulation: 99 L1 Subjects\n---------------------------------")
+    print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
 
     for p in range(n):
 
         for item, vector in colloc2BERT.items():
-            print(f"Participant {p+1} | Seed {s}  \n----------------------------------")
+            print(f"Participant {p+1} | Seed {s} \n----------------------------------")
             #vector = colloc2BERT['forget dream']
             act, rt = minz.recognize(vector)
             output.append([item, act, rt])
