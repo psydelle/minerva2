@@ -132,9 +132,7 @@ del colloc_bert_embeddings, sampled_collocs
 #### Now we got to add some noise to the memory matrix (parameter L)
 L = 0.6 # 0.6 is what the meta paper says
 # noise between 0 and 1
-noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
 
-noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
 
 import matplotlib.pyplot as plt
 
@@ -177,40 +175,41 @@ for s in range(n):
 
 ## Now we run the experiment
 
-minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
 output = [] # initialize an empty list to store the output
 
 
-for s in seed:
+for p, s in enumerate(seed):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
+    noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
+    noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
+    minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
+
     #print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
 
-    for p in range(n):
+    for item, vector in colloc2BERT.items():
+        print(f"Participant {p+1} | Seed {s} \n----------------------------------")
+        #vector = colloc2BERT['forget dream']
+        act, rt = minz.recognize(vector)
+        output.append([item, act, rt])
+        print(output[-1]) # print the last item in the list (the one we just appended)
 
-        for item, vector in colloc2BERT.items():
-            print(f"Participant {p+1} | Seed {s} \n----------------------------------")
-            #vector = colloc2BERT['forget dream']
-            act, rt = minz.recognize(vector)
-            output.append([item, act, rt])
-            print(output[-1]) # print the last item in the list (the one we just appended)
+# set up a dataframe to write the current results to a uniquely-named CSV file
 
-    # set up a dataframe to write the current results to a uniquely-named CSV file
+        results_l1 = pd.DataFrame(data = {"mode": 'l1', 
+                                        "id": [s],
+                                        "item": [item],
+                                        "act": [act],
+                                        "rt": [rt]}) 
+        if n == 0:
+        # delete the file if it exists and write the dataframe with column names to the top of the new file
+            results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
 
-            results_l1 = pd.DataFrame(data = {"mode": 'l1', 
-                                            "id": [s],
-                                            "item": [item],
-                                            "act": [act],
-                                            "rt": [rt]}) 
-            if n == 0:
-            # delete the file if it exists and write the dataframe with column names to the top of the new file
-                results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
-
-            else:
-            # append the dataframe to the existing file without column names
-                results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
-                print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+        else:
+        # append the dataframe to the existing file without column names
+            results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
+            print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
 print("********************************\n\nAll done!\n\n********************************")
 
