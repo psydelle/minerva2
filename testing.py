@@ -191,7 +191,7 @@ for s in seed:
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
-    print(f"\nBegin simulation: 99 L1 Subjects\n---------------------------------")
+    print("\nBegin simulation: 99 L1 Subjects\n---------------------------------")
 
     for p in range(n):
 
@@ -219,11 +219,7 @@ for s in seed:
                 print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
 print("********************************\n\nAll done!\n\n********************************")
+
+
 #act, rt = minz.recognize(colloc2BERT['chase dream'])
 #print(output)
-
-# write the output to a csv file
-
-""" with open('output.csv', 'w', newline='') as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerows(output) """
