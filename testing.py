@@ -26,7 +26,7 @@
 ## ACKNOWLEDGEMENTS  ----------------------------------------------------------
 
 # Ivan Vegner
-# 
+# Giulio Zhou
 
 #-----------------------------------------------------------------------------#
 
@@ -41,17 +41,20 @@ from exract_embeddings import get_word_vector # for BERT embeddings
 import matplotlib.pyplot as plt # for plotting
 
 import csv as csv # for reading in the dataset, etc.
+import os # for file management
+#-----------------------------------------------------------------------------#
 
-# set random seeds for reproducibility
 
-random.seed(42)
-torch.manual_seed(42)
+# set current working directory to this folder 
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 
 ## read in the dataset
 
 df = pd.read_csv("stimuli.csv") # same dataset as MSc project
 dataset = list(df['item']) # list of items
-fcoll = list(df['fcoll'].str.replace(r'\D', '')) # list of collocation frequencies
+fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
 
 
 ## convert the collocational frequencies to a list of floats
