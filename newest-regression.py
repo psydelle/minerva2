@@ -1,21 +1,50 @@
-## importing packages and stuff
-#
-import tokenizers
-import torch as torch
-import numpy as np
-from transformers import pipeline
-import torch.nn as nn
-import torch.optim as optim
-import pandas as pd
-import torchvision.models as models
-from torch.utils.data import Dataset, DataLoader
+## DOCUMENT DETAILS ----------------------------------------------------------
 
-import * from handle_embeddings # TODO: make sure this is where it ssuppoed to be
+# Project: CDT in NLP Individual Project
+# Working Title: Investigating Collocational Processing with Minerva2
+# Author: Sydelle de Souza
+# Institution: University of Edinburgh
+# Supervisors: Dr Frank Mollica and Dr Alex Doumas
+# Date: 2022/12/21
+# Python version: 3.9.12
+
+#-----------------------------------------------------------------------------#
+
+## COMMENTS -------------------------------------------------------------------
+
+# this file contains the code for transforming the stimuli into BERT embeddings. 
+# we use a neural network to learn the weights of the normalized ENG 
+# BERT embeddings that predict the normalized PT BERT embeddings. PT ~ weights(EN)
+# These weights are then used to the transform the EN embeddings which are then
+# used as input along with the PT embeddings to the MINERVA2 model in order to 
+# simulate the L2 experiment.
+
+#-----------------------------------------------------------------------------#
+
+
+## ACKNOWLEDGEMENTS  ----------------------------------------------------------
+
+
+#-----------------------------------------------------------------------------#
+
+
+## Set-Up ---------------------------------------------------------------------
+
+## importing packages and stuff
+import tokenizers # for tokenization
+import torch as torchv # for tensors
+import numpy as np # for arrays and stuff
+from transformers import pipeline # for BERT
+import torch.nn as nn # for neural networks
+import torch.optim as optim # for optimizers
+import pandas as pd # for dataframe manipulation
+import torchvision.models as models # for pretrained models
+from torch.utils.data import Dataset, DataLoader # for datasets and dataloaders
+from handle_embeddings import * # TODO: make sure this is where it ssuppoed to be
 
 import random
+import os
 
-random.seed(8675309)  # 9829# 40
-torch.manual_seed(8675309)  # 9829 # 40
 
 from exract_embeddings import *   # TODO: Make sure you are using the latest version of this in the mierva fodler
 
