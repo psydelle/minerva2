@@ -40,12 +40,18 @@ import pickle # for saving and loading objects
 from transformers import AutoTokenizer, AutoModel
 from exract_embeddings import get_word_vector # for BERT embeddings
 import matplotlib.pyplot as plt # for plotting
+import numpy as np
 
 import csv as csv # for reading in the dataset, etc.
 import os # for file management
 from joblib import Parallel, delayed # for parallel processing
+from filelock import FileLock
 #-----------------------------------------------------------------------------#
 
+# set the random seeds for reproducibility
+random.seed(0)
+torch.manual_seed(0)
+np.random.seed(0)
 
 # set current working directory to this folder 
 
@@ -128,7 +134,7 @@ class Minerva2(object):
     '''
     def __init__(self, F=None, M=None, Mat=None):
         if Mat is not None:
-            self.Mat = Mat.double() 
+            self.Mat = Mat
             self.M = Mat.shape[0]
             self.F = Mat.shape[1]
         else:
@@ -165,12 +171,13 @@ for s in range(n):
 ## Now we run the experiment
 output = [] # initialize an empty list to store the output
 
-def iter(p, s):
+def iter(p, s, out_filename):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
-    noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
-    noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
+    noise_gaussian = torch.normal(0, 1, (M, 768))
+    noise_mask = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
+    noisy_mem = torch.where(noise_mask < L, matrix + noise_gaussian, matrix) # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
 
     #print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
@@ -188,19 +195,24 @@ def iter(p, s):
                                         "id": [s],
                                         "participant": [p+1],
                                         "item": [item],
-                                        "act": [act],
-                                        "rt": [rt]}) 
-        if n == 0:
-        # delete the file if it exists and write the dataframe with column names to the top of the new file
-            results_l1.to_csv(f"l1-results.csv", mode = 'w', header = True)
+                                        "act": [act.item()],
+                                        "rt": [rt]})
 
-        else:
-        # append the dataframe to the existing file without column names
-            results_l1.to_csv(f"l1-results.csv", mode = 'a', header = False)
+        with FileLock(out_filename+ ".lock"):
+            if not os.path.exists(out_filename):
+                # delete the file if it exists and write the dataframe with column names to the top of the new file
+                results_l1.to_csv(out_filename, mode = 'w', header = True, index=False)
+            else:
+                # append the dataframe to the existing file without column names
+                results_l1.to_csv(out_filename, mode = 'a', header = False, index=False)
             
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
-NUM_CPUS = 28
-results = Parallel(n_jobs=NUM_CPUS)(delayed(iter)(p,s) for p,s in enumerate(seed))    
+NUM_CPUS = -1
+out_file = "l1-results.csv"
+if os.path.exists(out_file):
+    os.remove(out_file)
+
+results = Parallel(n_jobs=NUM_CPUS)(delayed(iter)(p,s,out_file) for p,s in enumerate(seed))    
 
 print("********************************\n\nAll done!\n\n********************************")

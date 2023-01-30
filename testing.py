@@ -39,11 +39,16 @@ import pickle # for saving and loading objects
 from transformers import AutoTokenizer, AutoModel
 from exract_embeddings import get_word_vector # for BERT embeddings
 import matplotlib.pyplot as plt # for plotting
+import numpy as np
 
 import csv as csv # for reading in the dataset, etc.
 import os # for file management
 #-----------------------------------------------------------------------------#
 
+# set the random seeds for reproducibility
+random.seed(0)
+torch.manual_seed(0)
+np.random.seed(0)
 
 # set current working directory to this folder 
 
@@ -180,8 +185,9 @@ for p, s in enumerate(seed):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
-    noise = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
-    noisy_mem = torch.where(noise < L, torch.zeros((M, 768)), matrix) # if the noise is less than L, then the memory is zero, otherwise it is the original matrix
+    noise_gaussian = torch.normal(0, 1, (M, 768))
+    noise_mask = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
+    noisy_mem = torch.where(noise_mask < L, matrix + noise_gaussian, matrix) # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
 
     #print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
