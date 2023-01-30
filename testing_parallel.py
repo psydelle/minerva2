@@ -134,7 +134,7 @@ class Minerva2(object):
     '''
     def __init__(self, F=None, M=None, Mat=None):
         if Mat is not None:
-            self.Mat = Mat
+            self.Mat = Mat.to(device)
             self.M = Mat.shape[0]
             self.F = Mat.shape[1]
         else:
@@ -171,6 +171,10 @@ for s in range(n):
 ## Now we run the experiment
 output = [] # initialize an empty list to store the output
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using {device} device")
+
+
 def iter(p, s, out_filename):
     #print(f"\nSeed {s}\n")
     random.seed(s)
@@ -178,6 +182,8 @@ def iter(p, s, out_filename):
     noise_gaussian = torch.normal(0, 1, (M, 768))
     noise_mask = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
     noisy_mem = torch.where(noise_mask < L, matrix + noise_gaussian, matrix) # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
+    noisy_mem = noisy_mem.to(device)
+
     minz = Minerva2(Mat=noisy_mem) # initialize the Minerva2 model with the noisy memory matrix
 
     #print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
@@ -185,8 +191,8 @@ def iter(p, s, out_filename):
     for item, vector in colloc2BERT.items():
         print(f"Participant {p+1} | Seed {s} \n----------------------------------")
         #vector = colloc2BERT['forget dream']
-        act, rt = minz.recognize(vector)
-        output.append([item, act, rt])
+        act, rt = minz.recognize(vector.to(device))
+        output.append([item, act.detach().cpu(), rt])
         print(f"{output[-1]} \n----------------------------------") # print the last item in the list (the one we just appended)
 
 # set up a dataframe to write the current results to a uniquely-named CSV file
