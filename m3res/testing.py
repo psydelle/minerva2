@@ -174,7 +174,9 @@ for s in range(n):
     seed.append(random.randint(0, 9999999))
 
 ## Now we run the experiment
+
 output = [] # initialize an empty list to store the output
+
 
 for p, s in enumerate(seed):
     #print(f"\nSeed {s}\n")
@@ -197,7 +199,6 @@ for p, s in enumerate(seed):
 
         results_l1 = pd.DataFrame(data = {"mode": 'l1', 
                                         "id": [s],
-                                        "participant": [p+1],
                                         "item": [item],
                                         "act": [act],
                                         "rt": [rt]}) 

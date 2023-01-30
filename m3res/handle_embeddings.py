@@ -1,3 +1,4 @@
+from cupy_util import *
 import numpy as np
 
 
@@ -67,53 +68,52 @@ def load_lexicon(file):
 
 
 def length_normalize(matrix):
-    norms = np.sqrt(np.sum(matrix ** 2, axis=1))
+    xp = get_array_module(matrix)
+    norms = xp.sqrt(xp.sum(matrix ** 2, axis=1))
     norms[norms == 0] = 1
-    matrix /= norms[:, np.newaxis]
-    return matrix
+    matrix /= norms[:, xp.newaxis]
 
 
 def mean_center(matrix):
-    avg = np.mean(matrix, axis=0)
+    xp = get_array_module(matrix)
+    avg = xp.mean(matrix, axis=0)
     matrix -= avg
-    return matrix
 
 
 def get_center(matrix):
-    avg = np.mean(matrix, axis=0)
+    xp = get_array_module(matrix)
+    avg = xp.mean(matrix, axis=0)
     return avg
 
 
 def length_normalize_dimensionwise(matrix):
-    norms = np.sqrt(np.sum(matrix ** 2, axis=0))
+    xp = get_array_module(matrix)
+    norms = xp.sqrt(xp.sum(matrix ** 2, axis=0))
     norms[norms == 0] = 1
     matrix /= norms
-    return matrix
 
 
 def mean_center_embeddingwise(matrix):
-    avg = np.mean(matrix, axis=1)
-    matrix -= avg[:, np.newaxis]
-    return matrix
+    xp = get_array_module(matrix)
+    avg = xp.mean(matrix, axis=1)
+    matrix -= avg[:, xp.newaxis]
 
 
 def mean_std(matrix):
-    std = np.std(matrix, axis=0)
+    xp = get_array_module(matrix)
+    std = xp.std(matrix, axis=0)
     matrix /= std
-    return matrix
 
 
 def normalize(matrix, actions):
-    matrix = matrix.copy()
     for action in actions:
         if action == 'unit':
-            matrix = length_normalize(matrix)
+            length_normalize(matrix)
         elif action == 'center':
-            matrix = mean_center(matrix)
+            mean_center(matrix)
         elif action == 'unitdim':
-            matrix = length_normalize_dimensionwise(matrix)
+            length_normalize_dimensionwise(matrix)
         elif action == 'centeremb':
-            matrix = mean_center_embeddingwise(matrix)
+            mean_center_embeddingwise(matrix)
         elif action == 'std':
-            matrix = mean_std(matrix)
-    return matrix
+            mean_std(matrix)

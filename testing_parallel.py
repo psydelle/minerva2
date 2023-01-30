@@ -26,6 +26,7 @@
 ## ACKNOWLEDGEMENTS  ----------------------------------------------------------
 
 # Ivan Vegner
+# Sean Memery
 # Giulio Zhou
 
 #-----------------------------------------------------------------------------#
@@ -42,6 +43,7 @@ import matplotlib.pyplot as plt # for plotting
 
 import csv as csv # for reading in the dataset, etc.
 import os # for file management
+from joblib import Parallel, delayed # for parallel processing
 #-----------------------------------------------------------------------------#
 
 
@@ -112,22 +114,6 @@ assert matrix.size() == (M, 768), "Huh?"
 del colloc_bert_embeddings, sampled_collocs
 
 
-# Obsolete, does the same as above:
-# colloc2BERT = dict()
-# for collocation in dataset:
-#     print('dealing with this shit: ', collocation, '')
-#     colloc2BERT[collocation] = grab_bert(collocation)
-
-# ### For our next trick, we will sample the collocations to make a M
-
-# sampled_collocs = random.choices(list(colloc2BERT.values()), k=M-len(colloc2BERT))
-
-# matrix = torch.zeros((M, 768))
-# for i, v in enumerate(colloc2BERT.values()):
-#     matrix[i, :] = v
-# for i, v in enumerate(sampled_collocs):
-#     matrix[i+len(colloc2BERT), :] = v
-
 
 #### Now we got to add some noise to the memory matrix (parameter L)
 L = 0.6 # 0.6 is what the meta paper says
@@ -165,8 +151,11 @@ class Minerva2(object):
             big, tau = self.recognize(probe, tau+1, k, maxiter)
         return big, tau
         
+##-----------------------------------------------------------------------------##
 
-#### Let's run our experiment. First we generate random seeds to simulate 99 l1 participants from Souza and Chalmers (2021)
+
+## Let's run our experiment. First we generate random seeds to simulate 
+## 99 l1 participants from Souza and Chalmers (2021)
 n = 99 # sample size
 p = 0
 seed = []
@@ -176,7 +165,7 @@ for s in range(n):
 ## Now we run the experiment
 output = [] # initialize an empty list to store the output
 
-for p, s in enumerate(seed):
+def iter(p, s):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
@@ -211,8 +200,7 @@ for p, s in enumerate(seed):
             
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
+NUM_CPUS = 28
+results = Parallel(n_jobs=NUM_CPUS)(delayed(iter)(p,s) for p,s in enumerate(seed))    
+
 print("********************************\n\nAll done!\n\n********************************")
-
-
-#act, rt = minz.recognize(colloc2BERT['chase dream'])
-#print(output)

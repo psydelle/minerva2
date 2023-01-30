@@ -31,7 +31,6 @@
 ## Set-Up ---------------------------------------------------------------------
 
 ## importing packages and stuff
-import pickle
 import numpy as np # for arrays and stuff
 import pandas as pd # for dataframe manipulation
 import random
@@ -67,10 +66,10 @@ df = pd.read_csv("stimuli.csv")
 layers = [-4, -3, -2, -1] # we're using the last 4 layers of BERT
 
 en_model = AutoModel.from_pretrained('distilbert-base-cased', output_hidden_states=True)  
-pt_model = AutoModel.from_pretrained('adalbertojunior/distilbert-portuguese-cased', output_hidden_states=True)  
+pt_model = AutoModel.from_pretrained('distilbert-portuguese-cased', output_hidden_states=True)  
 
 en_tokenizer = AutoTokenizer.from_pretrained('distilbert-base-cased')
-pt_tokenizer = AutoTokenizer.from_pretrained('adalbertojunior/distilbert-portuguese-cased')  
+pt_tokenizer = AutoTokenizer.from_pretrained('distilbert-portuguese-cased')  
 
 en_space = torch.zeros((768, len(df)))
 pt_space = torch.zeros((768, len(df)))
@@ -80,11 +79,8 @@ for inx in range(en_space.shape[1]):
     en_space[:, inx] = get_word_vector(df.item[inx], en_tokenizer, en_model, layers)
     pt_space[:, inx] = get_word_vector(df.item_pt[inx], pt_tokenizer, pt_model, layers)
 
-en_space = normalize(en_space.numpy(), ['unit', 'center', 'unit'])
-pt_space = normalize(pt_space.numpy(), ['unit', 'center', 'unit'])
-
-en_space = torch.from_numpy(en_space)
-pt_space = torch.from_numpy(pt_space)
+en_space = normalize(en_space, ['unit', 'center', 'unit'])
+pt_space = normalize(en_space, ['unit', 'center', 'unit'])
 
 
 ## here we're creating a new class object called CollocDataset
@@ -131,12 +127,11 @@ def train(dataloader, model, loss_fn, optimizer):
 
     # iterate through the dataset in batches
     for batch, (X, y) in enumerate(dataloader):
-        batch_size = X.size(0)
         X, y = X.to(device), y.to(device)  # convert training and test tensors to GPU compatible versions
 
         # Compute prediction error
         target = model(X)  # get the probability predictions of the batch (?)
-        var = torch.ones(batch_size, 768, requires_grad=True)  # TODO: makes sure the dimensions are correct
+        var = torch.ones(768, 768, requires_grad=True)  # TODO: makes ure the dimensions are correct
         loss = loss_fn(target, y, var)
 
         # Backpropagation
@@ -155,25 +150,23 @@ def test(dataloader, model, loss_fn):
     model.eval()  # here we put the model in evaluation mode, which means that any dropout is disabled
     test_loss, correct = 0, 0  # set the counters to zero
 
-    en_pt_map = {"en": [], "pt": []}
+    output_df = dict()
 
     with torch.no_grad():  # no_grad doesn't store loss gradients, it doesn't need them as it's not going to update parameters (efficiency ?)
 
         for X, y in dataloader:
-            batch_size = X.size(0)
             X, y = X.to(device), y.to(device)
 
             pred = model(X)  # here it predicts logits
-            var = torch.ones(batch_size, 768, requires_grad=True)  # TODO: makes sure the dimensions are correct
+            var = torch.ones(768, 768, requires_grad=True)  # TODO: makes ure the dimensions are correct
             test_loss += loss_fn(pred, y, var).item()  # loss fxn gives loglikelihood of y given model, adds it to a counter
 
-            en_pt_map["en"].extend(X.detach().cpu().tolist())
-            en_pt_map["pt"].extend(pred.detach().cpu().tolist())
+            output_df[X] = pred
 
-    return test_loss, en_pt_map  # return a tuple
+    return test_loss, output_df  # return a tuple
 
 
-# define the criterion---the loss function
+# define the criterion---the loss function, here binary cross entropy
 #
 criterion = nn.GaussianNLLLoss(reduction='mean')
 
@@ -216,7 +209,7 @@ for k in range(folds):
 
         train_total_loss, _ = test(train_dataloader, model, criterion)
         test_total_loss, translation_dictionary = test(test_dataloader, model, criterion)  # then test.
-        
+
         # report status of this epoch to the console
         #
         print(f"\nTraining Report:\n\tTotal loss: {train_total_loss:>8f}")
@@ -249,28 +242,5 @@ for k in range(folds):
     torch.save(model.state_dict(), f"l2_simulation_{k + 1}_epoch{t + 1}.pth")
 
     print(f"Done with fold {k + 1}\n")
-
-print("******* Refitting on whole dataset *******", end="\n\n")
-
-whole_dataset = CollocDataset(df)
-whole_dataloader = DataLoader(whole_dataset, batch_size=16, shuffle=True)
-
-model = CollocNet().to(device)
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-final_fit_epochs = 50
-
-for t in range(final_fit_epochs):
-    train(whole_dataloader, model, criterion, optimizer)
-
-    epoch_train_loss, _ = test(whole_dataloader, model, criterion)
-    print(f"\nTraining Report:\n\tTotal loss: {epoch_train_loss:>8f}")
-
-
-whole_total_loss, whole_translation_dictionary = test(whole_dataloader, model, criterion)
-print(f"Total loss: {whole_total_loss:>8f}\n")
-
-# save translation dictionary
-with open('stimuli_en_to_pt.pkl', 'wb') as f:
-    pickle.dump(whole_translation_dictionary, f, pickle.HIGHEST_PROTOCOL)
 
 print("********************************\n\nAll done!\n\n********************************")
