@@ -209,7 +209,7 @@ def iter(p, s, out_filename):
             
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
 
-NUM_CPUS = -1
+NUM_CPUS = 1
 out_file = "l1-results.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
