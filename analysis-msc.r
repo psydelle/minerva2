@@ -44,10 +44,10 @@ library(xtable) # for latex tables
 library(patchwork) # for combining plots
 
 library(car) # for anovas and other stats
-#library(afex) 
-#library(sjPlot) 
-#library(lme4)
-#library(rstatix) 
+library(afex) 
+library(sjPlot) 
+library(lme4)
+
 
 # set seed for reproducibility
 
@@ -58,13 +58,15 @@ set.seed(123)
 options(ggpubr.theme = "bw", digits = 3) 
 
 # load data
-stimuli <- read.csv("stimuli.csv", header = TRUE)
-nrow(stimuli) # 90 items
+fdstimuli <- read.csv("FinalDataset.csv", header = TRUE)
+nrow(fdstimuli) # 90 items
+head(fdstimuli)
 alsla <- read.csv("ALSLA-results.csv", header = TRUE)
 nrow(alsla) # 28802 responses
-l1 <- read.csv("l1-results.csv", header = TRUE)
-nrow(l1) # 8911 responses
-
+fdl1 <- read.csv("l1-results-FinalDataset.csv", header = TRUE)
+nrow(fdl1)
+colnames(fdl1)
+skim(fdl1)
 ## Data Wrangling ------------------------------------------------------------#
 
 ## ALSLA Dataset: select columns of interest
@@ -72,67 +74,68 @@ nrow(l1) # 8911 responses
 df <- select(alsla, c("ID", "l1", "item", "itemType", "collType", "RT", ))
 
 # keep only EN from the l1 column
-df <- df %>% filter(l1 == "EN")
+df <- df %>% filter(fdl1 == "EN")
 
 n_unique(df$ID) # 99 participants
 hist(df$RT) # visual check, all good
 
 # group by item and collType and get a count
-stimuli_df <- df %>% group_by(item, collType) %>% summarise(n = n())
+fdstimuli_df <- df %>% group_by(item, collType) %>% summarise(n = n())
 
 
 ## l1 simulation dataset: add collType column
 
 # manipulate strings in item column to have a space instead of a .
-l1$item <- gsub("\\.", " ", l1$item)
+fdl1$item <- gsub("\\.", " ", fdl1$item)
 
-# add collType from stimuli_df to l1 by matching to item column
-l1$collType <- stimuli_df$collType[match(l1$item, stimuli_df$item)]
-view(l1)
+# add collType from fdstimuli_df to l1 by matching to item column
+fdl1$collType <- fdstimuli_df$isCollocation[match(fdl1$item, fdstimuli_df$item)]
+head(fdl1)
 
-l1$collType <- factor(l1$collType)
+fdl1$collType <- factor(fdl1$collType)
 
-levels(l1$collType) # check levels
+levels(fdl1$collType) # check levels
 
 #rename factor levels
-levels(l1$collType) <- c("Baseline", "Congruent", "Incongruent", "Productive")
+levels(fdl1$collType) <- c("Baseline", "Congruent", "Incongruent", "Productive")
 
 #relevel factors
 
-l1$collType <- relevel(l1$collType, ref = "Productive")
+fdl1$collType <- relevel(fdl1$collType, ref = "Productive")
 # check to see if there are less than 90 responses to any items
 
-l1 <- l1 %>%
+fdl1 <- fdl1 %>%
   group_by(id) %>%
   filter(n() == 90) %>%
   ungroup()
 
- nrow(l1) # alles gut
+ nrow(fdl1) # alles gut
 
-n_unique(l1$id) # 99 simulations
+n_unique(fdl1$id) # 99 simulations
 
-hist(l1$rt) # visual check, all good
+hist(fdl1$rt) # visual check, all good
 
 # count if rt = 450
-sum(l1$rt == 450) # 178 responses are "time-outs"
+sum(fdl1$rt == 450) # 178 responses are "time-outs"
 
 # remove time-outs
-# l1 <- l1 %>% filter(rt != 450)
+# fdl1 <- fdl1 %>% filter(rt != 450)
 
 # rescale simulated rts to match alsla exp
-l1$rescaled_rt <- l1$rt*10
+fdl1$rescaled_rt <- fdl1$rt*10
 
-hist(l1$rescaled_rt) # visual check, all good
+hist(fdl1$rescaled_rt) # visual check, all good
 
 
 
 ## Summary Statistics --------------------------------------------------------#
 
 # barplot with t test
-barplot <- ggbarplot(l1 %>% filter(collType != "Baseline"), 
+barplot <- ggbarplot(fdl1 %>% filter(collType != "Baseline"), 
                      x = "collType", y = "rescaled_rt",
                      title = "Mean simulated response time by collocation type (n=99)",
                      add = "mean_se", fill = "collType",
+                     facet.by = "item",
                      xlab = "Collocation Type",
                      ylab = "Response Time (ms)",
                      ggtheme = theme_bw(),
@@ -147,14 +150,5 @@ barplot <- ggbarplot(l1 %>% filter(collType != "Baseline"),
                                   "#E7B800")) +
                     font("xy.text", size = 15)
 barplot
-
-
-
-#-----------------------------------------------------------------------------#
-
-#------------------------- EXPERIMENT ONE -------------------------------------#
-
-
-## Data Wrangling -------------------------------------------------------------
 
 
