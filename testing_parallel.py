@@ -46,6 +46,7 @@ import csv as csv # for reading in the dataset, etc.
 import os # for file management
 from joblib import Parallel, delayed # for parallel processing
 from filelock import FileLock
+import argparse
 #-----------------------------------------------------------------------------#
 
 # set the random seeds for reproducibility
@@ -57,11 +58,21 @@ np.random.seed(0)
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-d','--dataset_to_use', help='Dataset to use', default="stimuli.csv")
+# parser.add_argument('-t','--pt_translated_stimuli_pickle', help='Path to pickle file containing pt translations of en embeddings', default=None)
+args = parser.parse_args()
 
 ## read in the dataset
-df = pd.read_csv("stimuli.csv") # same dataset as MSc project
-dataset = list(df['item']) # list of items
-fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
+if args.dataset_to_use=="stimuli.csv":
+    df = pd.read_csv("stimuli.csv") # same dataset as MSc project
+    dataset = list(df['item']) # list of items
+    fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
+elif args.dataset_to_use == "FinalDataset.csv":
+    df = pd.read_csv("FinalDataset.csv") 
+    dataset = list(df['item']) # list of items
+    fcoll = list(df['collFrequency']) # collocation frequencies
+
 
 ## convert the collocational frequencies to a list of floats
 fcoll = [float(i) for i in fcoll]
@@ -73,7 +84,8 @@ print('loaded the dataset and normalized the collocational frequencies')
 
 M = 10000 
 
-if not os.path.isfile('colloc2BERT.dat'):
+bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}.dat'
+if not os.path.isfile(bert_embeddings_cache_filename):
 
     # set up the model and tokenizer for BERT embeddings
     def get_bert(mod_name="distilbert-base-uncased"): 
@@ -94,7 +106,7 @@ if not os.path.isfile('colloc2BERT.dat'):
 
     # write the embeddings dictionary to a file to be re-used next time we run the code
         #
-    colloc2BERTfile = open('colloc2BERT.dat', 'wb')
+    colloc2BERTfile = open(bert_embeddings_cache_filename, 'wb')
     pickle.dump(colloc2BERT, colloc2BERTfile)
     colloc2BERTfile.close()
     print("Dictionary written  to file\n")
@@ -102,7 +114,7 @@ if not os.path.isfile('colloc2BERT.dat'):
 else:
     # get the previously calculated embeddings from the file in which they were stored
     #
-    colloc2BERTfile = open('colloc2BERT.dat', 'rb')
+    colloc2BERTfile = open(bert_embeddings_cache_filename, 'rb')
     colloc2BERT = pickle.load(colloc2BERTfile)
     colloc2BERTfile.close()   
     print("Read from file\n") 
@@ -208,7 +220,7 @@ def iter(p, s, out_filename, device):
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
     return output
 
-NUM_WORKERS = 4
+NUM_WORKERS = 8
 
 if torch.cuda.is_available():
     n_gpus = torch.cuda.device_count()
@@ -219,9 +231,11 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = "l1-results.csv"
+out_file = f"l1-results-{args.dataset_to_use[:-4]}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
+if os.path.exists(out_file+".lock"):
+    os.remove(out_file+".lock")
 
 results = Parallel(n_jobs=NUM_WORKERS)(delayed(iter)(p,s,out_file, worker_devices[p % NUM_WORKERS]) for p,s in enumerate(seed))    
 

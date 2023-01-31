@@ -43,7 +43,7 @@ import torch as torch # for tensors
 import torch.nn as nn # for neural networks
 import torch.optim as optim # for optimizers
 
-import torchvision.models as models # for pretrained models
+# import torchvision.models as models # for pretrained models
 
 from torch.utils.data import Dataset, DataLoader # for datasets and dataloaders
 from transformers import pipeline # for BERT
@@ -136,7 +136,7 @@ def train(dataloader, model, loss_fn, optimizer):
 
         # Compute prediction error
         target = model(X)  # get the probability predictions of the batch (?)
-        var = torch.ones(batch_size, 768, requires_grad=True)  # TODO: makes sure the dimensions are correct
+        var = torch.ones(batch_size, 768, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
         loss = loss_fn(target, y, var)
 
         # Backpropagation
@@ -164,7 +164,7 @@ def test(dataloader, model, loss_fn):
             X, y = X.to(device), y.to(device)
 
             pred = model(X)  # here it predicts logits
-            var = torch.ones(batch_size, 768, requires_grad=True)  # TODO: makes sure the dimensions are correct
+            var = torch.ones(batch_size, 768, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
             test_loss += loss_fn(pred, y, var).item()  # loss fxn gives loglikelihood of y given model, adds it to a counter
 
             en_pt_map["en"].extend(X.detach().cpu().tolist())
@@ -257,7 +257,7 @@ whole_dataloader = DataLoader(whole_dataset, batch_size=16, shuffle=True)
 
 model = CollocNet().to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-final_fit_epochs = 50
+final_fit_epochs = 500
 
 for t in range(final_fit_epochs):
     train(whole_dataloader, model, criterion, optimizer)
