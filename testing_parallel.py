@@ -73,7 +73,7 @@ print('loaded the dataset and normalized the collocational frequencies')
 
 M = 10000 
 
-if not os.path.isfile('colloc2BERT-SC-Stimuli.dat'):
+if not os.path.isfile('colloc2BERT.dat'):
 
     # set up the model and tokenizer for BERT embeddings
     def get_bert(mod_name="distilbert-base-uncased"): 
@@ -123,7 +123,7 @@ class Minerva2(object):
     '''
     def __init__(self, F=None, M=None, Mat=None):
         if Mat is not None:
-            self.Mat = Mat.to(device)
+            self.Mat = Mat
             self.M = Mat.shape[0]
             self.F = Mat.shape[1]
         else:
@@ -158,13 +158,9 @@ for s in range(n):
     seed.append(random.randint(0, 9999999))
 
 ## Now we run the experiment
-output = [] # initialize an empty list to store the output
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using {device} device")
 
 
-def iter(p, s, out_filename):
+def iter(p, s, out_filename, device):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
@@ -183,8 +179,10 @@ def iter(p, s, out_filename):
 
     #print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
 
+    output = [] # initialize an empty list to store the output
+
     for item, vector in colloc2BERT.items():
-        print(f"Participant {p+1} | Seed {s} \n----------------------------------")
+        print(f"Participant {p+1} | Seed {s} | Running on {device} \n----------------------------------")
         #vector = colloc2BERT['forget dream']
         act, rt = minz.recognize(vector.to(device))
         output.append([item, act.detach().cpu(), rt])
@@ -208,12 +206,23 @@ def iter(p, s, out_filename):
                 results_l1.to_csv(out_filename, mode = 'a', header = False, index=False)
             
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+    return output
 
-NUM_CPUS = 1
+NUM_WORKERS = 4
+
+if torch.cuda.is_available():
+    n_gpus = torch.cuda.device_count()
+    worker_devices = [torch.device(i) for i in range(n_gpus)]
+    worker_devices = worker_devices * int(np.ceil(NUM_WORKERS / n_gpus))
+else:
+    worker_devices = ["cpu"] * NUM_WORKERS
+# device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using devices: {worker_devices}")
+
 out_file = "l1-results.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 
-results = Parallel(n_jobs=NUM_CPUS)(delayed(iter)(p,s,out_file) for p,s in enumerate(seed))    
+results = Parallel(n_jobs=NUM_WORKERS)(delayed(iter)(p,s,out_file, worker_devices[p % NUM_WORKERS]) for p,s in enumerate(seed))    
 
 print("********************************\n\nAll done!\n\n********************************")
