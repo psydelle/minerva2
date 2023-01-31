@@ -60,7 +60,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--dataset_to_use', help='Dataset to use', default="stimuli.csv")
-# parser.add_argument('-t','--pt_translated_stimuli_pickle', help='Path to pickle file containing pt translations of en embeddings', default=None)
+parser.add_argument('-t','--en_pt_trans_pickle', help='Path to pickle file containing pt translations of en embeddings', default=None)
+parser.add_argument('--concat_tokens', help='Concatenate BERT tokens instead of averaging', action="store_true", default=False)
 args = parser.parse_args()
 
 ## read in the dataset
@@ -84,7 +85,7 @@ print('loaded the dataset and normalized the collocational frequencies')
 
 M = 10000 
 
-bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}.dat'
+bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}{"-concat" if args.concat_tokens else ""}.dat'
 if not os.path.isfile(bert_embeddings_cache_filename):
 
     # set up the model and tokenizer for BERT embeddings
@@ -94,7 +95,7 @@ if not os.path.isfile(bert_embeddings_cache_filename):
         return tokenizer, model
 
     def grab_bert(colloc, model, tokenizer, layers = [-4, -3, -2, -1]):
-        return get_word_vector(colloc, tokenizer, model, layers) 
+        return get_word_vector(colloc, tokenizer, model, layers, concat_tokens=args.concat_tokens) 
 
     # grab BERT embeddings for the items in the dataset
     colloc2BERT = dict()
@@ -118,6 +119,17 @@ else:
     colloc2BERT = pickle.load(colloc2BERTfile)
     colloc2BERTfile.close()   
     print("Read from file\n") 
+
+if args.en_pt_trans_pickle:
+    with open(args.en_pt_trans_pickle, "rb") as f:
+        en_pt_dict = pickle.load(f)
+    for k in colloc2BERT:
+        # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
+        # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
+
+        # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
+        # TODO: rerun all experiments with cased bert if time
+        colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
 
 
 colloc_bert_embeddings = torch.stack(list(colloc2BERT.values())) # stack the embeddings into a tensor
@@ -180,10 +192,15 @@ def iter(p, s, out_filename, device):
     # sample from the collocations to make a M x 768 matrix
     sampled_collocs = torch.stack(random.choices(colloc_bert_embeddings, k=M-len(colloc_bert_embeddings), weights=normalized_fcoll))
     matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
-    assert matrix.size() == (M, 768), "Huh?"
 
-    noise_gaussian = torch.normal(0, 1, (M, 768))
-    noise_mask = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
+    embed_dim = 768
+    if args.concat_tokens:
+        embed_dim = 768 * 2
+
+    assert matrix.size() == (M, embed_dim), "Huh?"
+
+    noise_gaussian = torch.normal(0, 1, (M, embed_dim))
+    noise_mask = torch.rand((M, embed_dim)) # noise is a tensor of random numbers between 0 and 1
     noisy_mem = torch.where(noise_mask < L, matrix + noise_gaussian, matrix) # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     noisy_mem = noisy_mem.to(device)
 
@@ -194,11 +211,10 @@ def iter(p, s, out_filename, device):
     output = [] # initialize an empty list to store the output
 
     for item, vector in colloc2BERT.items():
-        print(f"Participant {p+1} | Seed {s} | Running on {device} \n----------------------------------")
+        print(f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}")
         #vector = colloc2BERT['forget dream']
         act, rt = minz.recognize(vector.to(device))
         output.append([item, act.detach().cpu(), rt])
-        print(f"{output[-1]} \n----------------------------------") # print the last item in the list (the one we just appended)
 
 # set up a dataframe to write the current results to a uniquely-named CSV file
 
@@ -220,7 +236,7 @@ def iter(p, s, out_filename, device):
     print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
     return output
 
-NUM_WORKERS = 8
+NUM_WORKERS = 6
 
 if torch.cuda.is_available():
     n_gpus = torch.cuda.device_count()
@@ -231,7 +247,7 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = f"l1-results-{args.dataset_to_use[:-4]}.csv"
+out_file = f"l1-results-{args.dataset_to_use[:-4]}{'-concat' if args.concat_tokens else ''}{'-pt' if args.en_pt_trans_pickle else ''}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 if os.path.exists(out_file+".lock"):

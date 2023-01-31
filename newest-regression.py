@@ -31,6 +31,7 @@
 ## Set-Up ---------------------------------------------------------------------
 
 ## importing packages and stuff
+import argparse
 import pickle
 import numpy as np # for arrays and stuff
 import pandas as pd # for dataframe manipulation
@@ -46,9 +47,9 @@ import torch.optim as optim # for optimizers
 # import torchvision.models as models # for pretrained models
 
 from torch.utils.data import Dataset, DataLoader # for datasets and dataloaders
-from transformers import pipeline # for BERT
+from transformers import pipeline, AutoModel, AutoTokenizer # for BERT
 from handle_embeddings import *  # for transforming BERT embeddings
-from exract_embeddings import *   # for extracting BERT embeddings
+from exract_embeddings import get_word_vector   # for extracting BERT embeddings
 
 #-----------------------------------------------------------------------------#
 
@@ -66,25 +67,35 @@ df = pd.read_csv("stimuli.csv")
 ## define the models and tokenizers
 layers = [-4, -3, -2, -1] # we're using the last 4 layers of BERT
 
+parser = argparse.ArgumentParser()
+# parser.add_argument('-d','--dataset_to_use', help='Dataset to use', default="stimuli.csv")
+parser.add_argument('--concat_tokens', help='Concatenate BERT tokens instead of averaging', action="store_true", default=False)
+# parser.add_argument('-t','--pt_translated_stimuli_pickle', help='Path to pickle file containing pt translations of en embeddings', default=None)
+args = parser.parse_args()
+
+embed_dim = 768
+if args.concat_tokens:
+    embed_dim = 768 * 2
+
 en_model = AutoModel.from_pretrained('distilbert-base-cased', output_hidden_states=True)  
 pt_model = AutoModel.from_pretrained('adalbertojunior/distilbert-portuguese-cased', output_hidden_states=True)  
 
 en_tokenizer = AutoTokenizer.from_pretrained('distilbert-base-cased')
 pt_tokenizer = AutoTokenizer.from_pretrained('adalbertojunior/distilbert-portuguese-cased')  
 
-en_space = torch.zeros((768, len(df)))
-pt_space = torch.zeros((768, len(df)))
+en_space = torch.zeros((embed_dim, len(df)))
+pt_space = torch.zeros((embed_dim, len(df)))
 
 ## get the BERT embeddings for the stimuli
 for inx in range(en_space.shape[1]):
-    en_space[:, inx] = get_word_vector(df.item[inx], en_tokenizer, en_model, layers)
-    pt_space[:, inx] = get_word_vector(df.item_pt[inx], pt_tokenizer, pt_model, layers)
+    en_space[:, inx] = get_word_vector(df.item[inx], en_tokenizer, en_model, layers, concat_tokens=args.concat_tokens)
+    pt_space[:, inx] = get_word_vector(df.item_pt[inx], pt_tokenizer, pt_model, layers, concat_tokens=args.concat_tokens)
 
-en_space = normalize(en_space.numpy(), ['unit', 'center', 'unit'])
-pt_space = normalize(pt_space.numpy(), ['unit', 'center', 'unit'])
+# en_space = normalize(en_space.numpy(), ['unit', 'center', 'unit'])
+# pt_space = normalize(pt_space.numpy(), ['unit', 'center', 'unit'])
 
-en_space = torch.from_numpy(en_space)
-pt_space = torch.from_numpy(pt_space)
+# en_space = torch.from_numpy(en_space)
+# pt_space = torch.from_numpy(pt_space)
 
 
 ## here we're creating a new class object called CollocDataset
@@ -102,7 +113,7 @@ class CollocDataset(Dataset):
 
     ## defining getitem allows you to index the elements in the obj
     def __getitem__(self, inx):
-        return en_space[:, inx], pt_space[:, inx]
+        return df.item[inx], en_space[:, inx], pt_space[:, inx]
 
 
 ## assign the device as cuda if GPU is available, if not, then cpu
@@ -114,11 +125,11 @@ print(f"Using {device} device")
 ## finally, we define the neural net model (henceforth nn), not to be confused with the BERT model!
 #
 class CollocNet(nn.Module):
-    def __init__(self):
+    def __init__(self, embed_dim=768):
         super(CollocNet, self).__init__()
 
         self.stack = nn.Sequential(
-            nn.Linear(768, 768))
+            nn.Linear(embed_dim, embed_dim))
 
     def forward(self, x): 
         translated_en = self.stack(x)
@@ -130,13 +141,13 @@ def train(dataloader, model, loss_fn, optimizer):
     model.train()  # this puts the model in train mode which means it will update params, backpropagate loss, apply dropout, etc.
 
     # iterate through the dataset in batches
-    for batch, (X, y) in enumerate(dataloader):
+    for batch, (item_en, X, y) in enumerate(dataloader):
         batch_size = X.size(0)
         X, y = X.to(device), y.to(device)  # convert training and test tensors to GPU compatible versions
 
         # Compute prediction error
         target = model(X)  # get the probability predictions of the batch (?)
-        var = torch.ones(batch_size, 768, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
+        var = torch.ones(batch_size, embed_dim, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
         loss = loss_fn(target, y, var)
 
         # Backpropagation
@@ -159,16 +170,16 @@ def test(dataloader, model, loss_fn):
 
     with torch.no_grad():  # no_grad doesn't store loss gradients, it doesn't need them as it's not going to update parameters (efficiency ?)
 
-        for X, y in dataloader:
+        for item_en, X, y in dataloader:
             batch_size = X.size(0)
             X, y = X.to(device), y.to(device)
 
             pred = model(X)  # here it predicts logits
-            var = torch.ones(batch_size, 768, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
+            var = torch.ones(batch_size, embed_dim, requires_grad=True, device=device)  # TODO: makes sure the dimensions are correct
             test_loss += loss_fn(pred, y, var).item()  # loss fxn gives loglikelihood of y given model, adds it to a counter
 
-            en_pt_map["en"].extend(X.detach().cpu().tolist())
-            en_pt_map["pt"].extend(pred.detach().cpu().tolist())
+            for _item_en, _x, _pred in zip(item_en, X.detach().cpu().tolist(), pred.detach().cpu().tolist()):
+                en_pt_map[_item_en] = {"en": _x, "pt": _pred}
 
     return test_loss, en_pt_map  # return a tuple
 
@@ -201,7 +212,7 @@ for k in range(folds):
 
     # we need to start with a fresh model for each fold
     #
-    model = CollocNet().to(device)
+    model = CollocNet(embed_dim=embed_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)  # the algorithm used to adjust the params
 
     ## run the functions on the actual data! it will do it over the number of epochs
@@ -253,11 +264,11 @@ for k in range(folds):
 print("******* Refitting on whole dataset *******", end="\n\n")
 
 whole_dataset = CollocDataset(df)
-whole_dataloader = DataLoader(whole_dataset, batch_size=16, shuffle=True)
+whole_dataloader = DataLoader(whole_dataset, batch_size=90, shuffle=True)
 
-model = CollocNet().to(device)
+model = CollocNet(embed_dim=embed_dim).to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-final_fit_epochs = 500
+final_fit_epochs = 300
 
 for t in range(final_fit_epochs):
     train(whole_dataloader, model, criterion, optimizer)
@@ -270,7 +281,7 @@ whole_total_loss, whole_translation_dictionary = test(whole_dataloader, model, c
 print(f"Total loss: {whole_total_loss:>8f}\n")
 
 # save translation dictionary
-with open('stimuli_en_to_pt.pkl', 'wb') as f:
+with open(f'stimuli_en_to_pt{"-concat" if args.concat_tokens else ""}.pkl', 'wb') as f:
     pickle.dump(whole_translation_dictionary, f, pickle.HIGHEST_PROTOCOL)
 
 print("********************************\n\nAll done!\n\n********************************")

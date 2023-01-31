@@ -10,7 +10,7 @@ def get_word_idx(sent: str, word: str):
     return sent.split(" ").index(word)
 
 
-def get_hidden_states(encoded, model, layers):
+def get_hidden_states(encoded, model, layers, concat_tokens=False):
     """Push input IDs through model. Stack and sum `layers` (last four by default).
        Select only those subword token outputs that belong to our word of interest
        and average them."""
@@ -21,19 +21,23 @@ def get_hidden_states(encoded, model, layers):
     states = output.hidden_states
     # Stack and sum all requested layers
     output = torch.stack([states[i] for i in layers]).sum(0).squeeze()
+    
     # Only select the tokens that constitute the requested word
-    word_tokens_output = output[1:3, :]
+    if concat_tokens:
+        word_tokens_output = torch.flatten(output[1:3])
+    else:
+        word_tokens_output = output[1:3, :].mean(dim=0)
 
-    return word_tokens_output.mean(dim=0)
+    return word_tokens_output
 
 
-def get_word_vector(sent, tokenizer, model, layers):
+def get_word_vector(sent, tokenizer, model, layers, concat_tokens=False):
     """Get a word vector by first tokenizing the input sentence, getting all token idxs
        that make up the word of interest, and then `get_hidden_states`."""
     encoded = tokenizer.encode_plus(sent, return_tensors="pt")
     # get all token idxs that belong to the word of interest
 
-    return get_hidden_states(encoded, model, layers)
+    return get_hidden_states(encoded, model, layers, concat_tokens=concat_tokens)
 
 
 def main(layers=None):
@@ -45,7 +49,7 @@ def main(layers=None):
     sent = "I like cookies ."
     idx = get_word_idx(sent, "cookies")
 
-    word_embedding = get_word_vector(sent, idx, tokenizer, model, layers)
+    word_embedding = get_word_vector(sent, idx, tokenizer, model, layers, concat_tokens=False)
 
     return word_embedding
 
