@@ -110,18 +110,7 @@ else:
 
 colloc_bert_embeddings = torch.stack(list(colloc2BERT.values())) # stack the embeddings into a tensor
 
-# sample from the collocations to make a M x 768 matrix
-sampled_collocs = torch.stack(random.choices(colloc_bert_embeddings, k=M-len(colloc_bert_embeddings), weights=normalized_fcoll))
-matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
-assert matrix.size() == (M, 768), "Huh?"
-
-# Ivan's pedantic memory optimizations: since the concat we do not need the 
-# original tensors anymore because they have been copied when matrix was made
-del colloc_bert_embeddings, sampled_collocs
-
-
-
-#### Now we got to add some noise to the memory matrix (parameter L)
+## Now we got to add some noise to the memory matrix (parameter L)
 L = 0.6 # 0.6 is what the meta paper says
 # noise between 0 and 1
 
@@ -179,6 +168,12 @@ def iter(p, s, out_filename):
     #print(f"\nSeed {s}\n")
     random.seed(s)
     torch.manual_seed(s)
+
+    # sample from the collocations to make a M x 768 matrix
+    sampled_collocs = torch.stack(random.choices(colloc_bert_embeddings, k=M-len(colloc_bert_embeddings), weights=normalized_fcoll))
+    matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
+    assert matrix.size() == (M, 768), "Huh?"
+
     noise_gaussian = torch.normal(0, 1, (M, 768))
     noise_mask = torch.rand((M, 768)) # noise is a tensor of random numbers between 0 and 1
     noisy_mem = torch.where(noise_mask < L, matrix + noise_gaussian, matrix) # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
