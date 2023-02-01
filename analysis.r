@@ -1,7 +1,7 @@
 ## DOCUMENT DETAILS ----------------------------------------------------------
 
 # Project: CDT in NLP Individual Project
-# Working Title: Investigating Collocational Processing with Minerva2
+# Document Title: Stats for Human Data
 # Author: Sydelle de Souza
 # Institution: University of Edinburgh
 # Supervisors: Dr Frank Mollica and Dr Alex Doumas
@@ -34,16 +34,11 @@ setwd(dirname(sys.frame(1)$ofile))
 
 library(tidyverse) # data wrangling
 library(performance)
-
 library(skimr) # summary statistics
-
 library(ggpubr) # for publication-ready plots
 library(pander) # for publication-ready tables
-
 library(xtable) # for latex tables
-
 library(patchwork) # for combining plots
-
 library(car) # for anovas and other stats
 library(afex) 
 library(sjPlot) 
@@ -114,18 +109,16 @@ alsla_plot <-  ggbarplot(alsla,
                     theme(legend.position = "none")
 alsla_plot
 
-m1_l1 <- mixed(RT ~ collType + age + 
-              (1 + collType | ID) + 
-              (1 | item), 
-              data = alsla %>% filter(l1 == "English"),
-              family = inverse.gaussian(link = "identity"), method = "LRT")
+m1_l1 <- mixed(RT ~ collType + scale(age) + 
+              (1 | ID) + (1 | item), 
+              data = alsla %>% filter(l1 == "English"), method = "LRT")
+
 m1_l1
 summary(m1_l1)
 
 
-m1_l2 <- mixed(RT ~ collType + age + 
-              (1 + collType | ID) + 
-              (1 | item), 
+m1_l2 <- mixed(RT ~ collType + scale(age) + 
+              (1 | ID), 
               data = alsla %>% filter(l1 != "English"),
               family = inverse.gaussian(link = "identity"), method = "LRT")
 m1_l2
