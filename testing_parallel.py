@@ -89,6 +89,12 @@ parser.add_argument(
     type=float,
 )
 parser.add_argument(
+    "--num_workers",
+    help="Number of workers to use",
+    default=4,
+    type=int,
+)
+parser.add_argument(
     "--no_concat_tokens",
     dest="concat_tokens",
     help="Concatenate BERT tokens instead of averaging",
@@ -370,7 +376,7 @@ def iter(p, s, out_filename, device):
     return output
 
 
-NUM_WORKERS = 1
+NUM_WORKERS = args.num_workers
 
 if torch.cuda.is_available():
     n_gpus = torch.cuda.device_count()
