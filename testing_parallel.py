@@ -402,7 +402,7 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = f"l1-results-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}.csv"
+out_file = f"results/l1-results-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 if os.path.exists(out_file + ".lock"):
