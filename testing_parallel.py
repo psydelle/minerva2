@@ -308,20 +308,35 @@ def iter(p, s, out_filename, device):
     torch.manual_seed(s)
 
     # sample from the collocations to make a M x 768 matrix
+    sample_k = M - len(colloc_bert_embeddings)
+
     if args.frequency_lang == "en":
         sampled_collocs = torch.stack(
             random.choices(
-                colloc_bert_embeddings, k=M - len(colloc_bert_embeddings), weights=norm_freq_en
+                colloc_bert_embeddings, k=sample_k, weights=norm_freq_en
             )
         )
     elif args.frequency_lang == "pt":
         sampled_collocs = torch.stack(
             random.choices(
-                colloc_bert_embeddings, k=M - len(colloc_bert_embeddings), weights=norm_freq_pt
+                colloc_bert_embeddings, k=sample_k, weights=norm_freq_pt
             )
         )
     elif args.frequency_lang == "mix":
-        raise NotImplementedError()
+        sample_k_pt = round(sample_k * args.freq_fraction_pt)
+        sample_k_en = sample_k - sample_k_pt
+        _sampled_collocs_pt = torch.stack(
+            random.choices(
+                colloc_bert_embeddings, k=sample_k_pt, weights=norm_freq_pt
+            )
+        )
+        _sampled_collocs_en = torch.stack(
+            random.choices(
+                colloc_bert_embeddings, k=sample_k_en, weights=norm_freq_en
+            )
+        )
+        sampled_collocs = torch.concat([_sampled_collocs_pt, _sampled_collocs_en], dim=0)
+
     matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
 
     embed_dim = 768
