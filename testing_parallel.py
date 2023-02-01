@@ -344,12 +344,12 @@ def iter(p, s, out_filename, device):
     output = []  # initialize an empty list to store the output
 
     for item, vector in colloc2BERT.items():
-        print(
-            f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
-        )
         # vector = colloc2BERT['forget dream']
         act, rt = minz.recognize(vector.to(device))
         output.append([item, act.detach().cpu(), rt])
+        print(
+            f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
+        )
 
         # set up a dataframe to write the current results to a uniquely-named CSV file
 
@@ -396,5 +396,7 @@ if os.path.exists(out_file + ".lock"):
 results = Parallel(n_jobs=NUM_WORKERS)(
     delayed(iter)(p, s, out_file, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(seed)
 )
+if os.path.exists(out_file + ".lock"):
+    os.remove(out_file + ".lock")
 
 print("********************************\n\nAll done!\n\n********************************")
