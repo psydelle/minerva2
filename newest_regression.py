@@ -215,7 +215,7 @@ criterion = nn.GaussianNLLLoss(reduction='mean')
 # hyperparameters
 #
 learning_rate = 1e-3  # velocity with which the params are adjusted
-folds = 5  # the dataset is evenly split into 5 folds and we test using 'leave k out'
+folds = 5 if not args.refit_whole else 0  # the dataset is evenly split into 5 folds and we test using 'leave k out'
 epochs = 500
 fold_models = []
 
@@ -312,14 +312,17 @@ if args.refit_whole:
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     for t in range(epochs):
+        print(f"Epoch {t + 1}\n-------------------------------")
+
         train(whole_dataloader, model, criterion, optimizer)
 
         epoch_train_loss, epoch_train_inverted_loss, _ = test(whole_dataloader, model, criterion)
         print(f"\nTraining Report:\n\tTotal loss: {epoch_train_loss:>8f}")
 
 
-    whole_total_loss, whole_inverted_loss, whole_translation_dictionary = test(whole_dataloader, model, criterion)
-    print(f"Total loss: {whole_total_loss:>8f} | Inverted loss: {whole_inverted_loss:>8f}\n")
+    whole_test_loss, whole_inverted_loss, whole_translation_dictionary = test(whole_dataloader, model, criterion, test_invert=True)
+    torch.save(model.state_dict(), f"l2_simulation_whole_maxepoch{epochs}_loss{whole_test_loss:>8f}.pth")
+    print(f"Total loss: {whole_test_loss:>8f} | Inverted loss: {whole_inverted_loss:>8f}")
 else:
     # average fold models
     model = CollocNet(embed_dim=embed_dim)
@@ -337,7 +340,7 @@ else:
 
 
 # # save translation dictionary
-with open(f'stimuli_en_to_pt{"-concat" if args.concat_tokens else ""}.pkl', 'wb') as f:
+with open(f'stimuli_en_to_pt{"-concat" if args.concat_tokens else ""}{"-refit" if args.refit_whole else ""}.pkl', 'wb') as f:
     pickle.dump(whole_translation_dictionary, f, pickle.HIGHEST_PROTOCOL)
 
 print("********************************\n\nAll done!\n\n********************************")

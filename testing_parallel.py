@@ -101,6 +101,11 @@ parser.add_argument(
     action="store_false",
     default=True,
 )
+parser.add_argument(
+    "--label",
+    help="Arbitrary label to append to all files created",
+    default=None,
+)
 args = parser.parse_args()
 
 EN_BERT = "distilbert-base-cased"
@@ -166,7 +171,7 @@ print("loaded the dataset and normalized the collocational frequencies")
 
 M = 10000
 
-bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}-lang_{args.space_lang}{"-concat" if args.concat_tokens else ""}.dat'
+bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}-lang_{args.space_lang}{"-concat" if args.concat_tokens else ""}{"-" + args.label if args.label else ""}.dat'
 if not os.path.isfile(bert_embeddings_cache_filename):
     # set up the model and tokenizer for BERT embeddings
     def get_bert(mod_name="distilbert-base-uncased"):
@@ -402,7 +407,7 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = f"results/l1-results-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}.csv"
+out_file = f"results/l1-results-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}{'-' + args.label if args.label else ''}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 if os.path.exists(out_file + ".lock"):
