@@ -13,7 +13,7 @@
 ## COMMENTS -------------------------------------------------------------------
 
 # this file contains the code for analysing the results of the experiment. we
-# start with experiment one which simulates L1 processing.  
+# start with experiment one which simulates L1 processing.
 
 #-----------------------------------------------------------------------------#
 
@@ -26,27 +26,29 @@
 
 ## Set-Up ---------------------------------------------------------------------
 
-# set current working directory 
+# set current working directory
 
 setwd(dirname(sys.frame(1)$ofile))
 
 # load packages
 
 library(tidyverse) # data wrangling
-library(performance) 
+library(performance)
 
 library(skimr) # summary statistics
 
 library(ggpubr) # for publication-ready plots
 library(pander) # for publication-ready tables
+
 library(xtable) # for latex tables
 
 library(patchwork) # for combining plots
 
 library(car) # for anovas and other stats
-#library(afex) 
-#library(sjPlot) 
-#library(lme4)
+library(afex) 
+library(sjPlot) 
+library(lme4)
+library(boot) # for bootstrapping
 #library(rstatix) 
 
 # set seed for reproducibility
@@ -55,31 +57,86 @@ set.seed(123)
 
 # set options
 
-options(ggpubr.theme = "bw", digits = 3) 
+options(ggpubr.theme = "bw", digits = 3)
 
 # load data
 stimuli <- read.csv("stimuli.csv", header = TRUE)
-nrow(stimuli) # 90 items
 alsla <- read.csv("ALSLA-results.csv", header = TRUE)
-nrow(alsla) # 28802 responses
-l1 <- read.csv("l1-results.csv", header = TRUE)
-nrow(l1) # 8911 responses
+alsla$l1 <- ifelse(alsla$l1 == "EN", "English", "Portuguese")
 
 ## Data Wrangling ------------------------------------------------------------#
 
-## ALSLA Dataset: select columns of interest
+#rename factor levels
+alsla$collType <- as.factor(alsla$collType)
+levels(alsla$collType) <- c("Baseline", "Congruent",
+                            "Incongruent", "Productive")
 
-df <- select(alsla, c("ID", "l1", "item", "itemType", "collType", "RT", ))
+# reorder factor levels
+alsla$collType <- factor(alsla$collType, 
+                  levels = c("Productive", "Congruent", 
+                            "Incongruent", "Baseline"))
+                             #relevel factors
+alsla$collType <- relevel(alsla$collType, ref = "Productive")
 
-# keep only EN from the l1 column
-df <- df %>% filter(l1 == "EN")
+# barplots with bootstrapped confidence intervals
+ci_fun <- function(y) {
+  boot_ci <- boot(y, statistic = mean, R = 1000)
+  return(boot.ci(boot_ci, index = 1)$bca[4:5])
+}
 
-n_unique(df$ID) # 99 participants
-hist(df$RT) # visual check, all good
+ci <- tapply(alsla$RT, alsla$collType, ci_fun)
+ci_df <- data.frame(x = names(ci), lower = ci[,1], upper = ci[,2])
 
+alsla_plot <-  ggbarplot(alsla, 
+                     x = "collType", y = "RT",
+                     facet.by = "l1",
+                     #title = "Mean response time by collocation type for L1 English (n=99)",
+                     add = "mean_ci", 
+                     fill = "collType",
+                     #facet.by = "item",
+                     xlab = "Experimental Condition",
+                     ylab = "Response Time (ms)",
+                     ggtheme = theme_bw(),
+                     label = TRUE,
+                     lab.vjust = -4,
+                     font.title = c(22, "bold"),
+                     font.x = c("22", "bold"),
+                     font.y = c("22", "bold"),
+                     palette = c("#005876", "#D50032",
+                                  "#EBA70E", "#81B920",
+                                  "#00AFBB", "#4A7875",
+                                  "#E7B800"),
+                     panel.labs.background = list(color = "black",
+                                                  fill = "white"),
+                          panel.labs.font = list(size = 20, 
+                                                  face = "bold"),) +
+                    font("xy.text", size = 15) + 
+                    theme(legend.position = "none")
+alsla_plot
+
+m1_l1 <- mixed(RT ~ collType + age + 
+              (1 + collType | ID) + 
+              (1 | item), 
+              data = alsla %>% filter(l1 == "English"),
+              family = inverse.gaussian(link = "identity"), method = "LRT")
+m1_l1
+summary(m1_l1)
+
+
+m1_l2 <- mixed(RT ~ collType + age + 
+              (1 + collType | ID) + 
+              (1 | item), 
+              data = alsla %>% filter(l1 != "English"),
+              family = inverse.gaussian(link = "identity"), method = "LRT")
+m1_l2
+summary(m1_l2)
+
+# summary statistics for l1
+
+alsla %>% group_by(l1) %>% summarise(mean = mean(RT), sd = sd(RT), n = n())
 # group by item and collType and get a count
-stimuli_df <- df %>% group_by(item, collType) %>% summarise(n = n())
-
+stimuli_df <- alsla %>% group_by(item, collType) %>% summarise(n = n())
+head(stimuli_df)
 
 ## l1 simulation dataset: add collType column
 
@@ -88,7 +145,8 @@ l1$item <- gsub("\\.", " ", l1$item)
 
 # add collType from stimuli_df to l1 by matching to item column
 l1$collType <- stimuli_df$collType[match(l1$item, stimuli_df$item)]
-view(l1)
+l1$fcoll <- stimuli_df$collType[match(l1$item, stimuli_df$item)]
+head(l1)
 
 l1$collType <- factor(l1$collType)
 
@@ -96,7 +154,7 @@ levels(l1$collType) # check levels
 
 #rename factor levels
 levels(l1$collType) <- c("Baseline", "Congruent", "Incongruent", "Productive")
-
+head(l1)
 #relevel factors
 
 l1$collType <- relevel(l1$collType, ref = "Productive")
@@ -122,17 +180,38 @@ sum(l1$rt == 450) # 178 responses are "time-outs"
 # rescale simulated rts to match alsla exp
 l1$rescaled_rt <- l1$rt*10
 
-hist(l1$rescaled_rt) # visual check, all good
-
-
-
 ## Summary Statistics --------------------------------------------------------#
 
-# barplot with t test
-barplot <- ggbarplot(l1 %>% filter(collType != "Baseline"), 
+# barplot with bootstrap confidence intervals
+
+l1barplot <- ggbarplot(l1, x = "collType", y = "rescaled_rt",
+                     title = "Mean simulated response time by collocation type for L1 English (n=99)",
+                     add = "mean_ci", 
+                     fill = "collType",
+                     #facet.by = "item",
+                     xlab = "Collocation Type",
+                     ylab = "Response Time (ms)",
+                     ggtheme = theme_bw(),
+                     label = TRUE,
+                     lab.vjust = -4,
+                     font.title = c(22, "bold"),
+                     font.x = c("22", "bold"),
+                     font.y = c("22", "bold"),
+                     palette = c("#005876", "#D50032",
+                                  "#EBA70E", "#81B920",
+                                  "#00AFBB", "#4A7875",
+                                  "#E7B800")) +
+                    font("xy.text", size = 15) +
+                    stat_summary(fun.data = mean_cl_boot(), 
+                    geom = "errorbar", width = 0.2, size = 1.5, 
+                    color = "black")
+l1barplot
+
+l2barplot <- ggbarplot(l2, 
                      x = "collType", y = "rescaled_rt",
                      title = "Mean simulated response time by collocation type (n=99)",
-                     add = "mean_se", fill = "collType",
+                     add = "mean_ci", fill = "collType",
+                     #facet.by = "item",
                      xlab = "Collocation Type",
                      ylab = "Response Time (ms)",
                      ggtheme = theme_bw(),
@@ -146,9 +225,6 @@ barplot <- ggbarplot(l1 %>% filter(collType != "Baseline"),
                                   "#00AFBB", "#4A7875",
                                   "#E7B800")) +
                     font("xy.text", size = 15)
-barplot
-
-
 
 #-----------------------------------------------------------------------------#
 
@@ -158,3 +234,22 @@ barplot
 ## Data Wrangling -------------------------------------------------------------
 
 
+m1 <- glmer(rescaled_rt ~ collType + (1 | id) + (1 | item), 
+            data = l1 %>% filter(collType != "Baseline"), 
+            family = inverse.gaussian(link = "identity"), nAGQ = 0,
+                    control=glmerControl(optimizer ="bobyqa"))
+m1
+
+summary(m1)
+m1.glmer <- glmer(rescaled_rt ~ collType + (1 | id) + (1 | item), data = l1 %>% filter(collType != "Baseline"), family = gaussian)
+summary(m1)
+ranef(m1)
+
+plot(m1)
+
+ plot_model(m1)
+
+
+m2 <- lmer(rescaled_rt ~ collType + fcoll + (1 | item), data = l1)
+summary(m2)
+colnames(l1)
