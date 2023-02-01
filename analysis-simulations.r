@@ -33,7 +33,6 @@ setwd(dirname(sys.frame(1)$ofile))
 # load packages
 
 library(tidyverse) # data wrangling
-library(performance)
 library(skimr) # summary statistics
 library(ggpubr) # for publication-ready plots
 library(pander) # for publication-ready tables
@@ -68,25 +67,47 @@ en_pt <- read.csv("results\\l1-results-stimuli-lang_en-freq_pt-concat.csv",
 en_pt$space <- "English"
 en_pt$freq <- "Portuguese"
 
+en_mix06 <- read.csv("results\\l1-results-stimuli-lang_en-freq_pt-concat.csv", 
+                    header = TRUE)
+en_mix06$space <- "English"
+en_mix06$freq <- "Mixed 0.6"
+
+
+en_al_en <- read.csv("results\\l1-results-stimuli-lang_en_aligned-freq_en-concat.csv", 
+                    header = TRUE)
+en_al_en$space <- "English Aligned"
+en_al_en$freq <- "English"
+
 en_al_pt <- read.csv("results\\l1-results-stimuli-lang_en_aligned-freq_pt-concat.csv", 
                     header = TRUE)
 en_al_pt$space <- "English Aligned"
 en_al_pt$freq <- "Portuguese"
 
-pt_en <- read.csv("results\\l1-results-stimuli-lang_pt-freq_en-concat.csv", 
+en_al_mix06 <- read.csv("results\\l1-results-stimuli-lang_en_aligned-freq_mix-mix0.6-concat.csv", 
                     header = TRUE)
-pt_en$space <- "Portuguese"
-pt_en$freq <- "English"
+en_al_mix06$space <- "English Aligned"
+en_al_mix06$freq <- "Mixed 0.6"
+
+
 
 pt_pt <- read.csv("results\\l1-results-stimuli-lang_pt-freq_pt-concat.csv", 
                     header = TRUE)
 pt_pt$space <- "Portuguese"
 pt_pt$freq <- "Portuguese"
 
+pt_en <- read.csv("results\\l1-results-stimuli-lang_pt-freq_en-concat.csv", 
+                    header = TRUE)
+pt_en$space <- "Portuguese"
+pt_en$freq <- "English"
 
+pt_mix06 <- read.csv("results\\l1-results-stimuli-lang_pt-freq_mix-mix0.6-concat.csv", 
+                    header = TRUE)
+pt_mix06$space <- "Portuguese"
+pt_mix06$freq <- "Mixed 0.6"
 ## Data Wrangling ------------------------------------------------------------#
 
-results_df <- rbind(en_en, en_pt, en_al_pt, pt_en, pt_pt)
+results_df <- rbind(en_en, en_pt, en_mix06, en_al_en, en_al_pt, en_al_mix06, 
+                    pt_pt, pt_en, pt_mix06)
 head(results_df)
 alsla$l1 <- ifelse(alsla$l1 == "EN", "English", "Portuguese")
 
@@ -144,13 +165,55 @@ results_plot
 
 m1_en_en <- lmer(rt ~ collType + 
               (1 | id) + (1 | item), 
-              data = en_en)
+              data = results_df %>% filter(space == "English" & freq == "English"))
 
-m1_en_en
 summary(m1_en_en)
-
 
 m1_en_pt <- lmer(rt ~ collType + 
               (1 | id) + (1 | item), 
-              data = en_pt)
+              data = results_df %>% filter(space == "English" & freq == "Portuguese"))
+
 summary(m1_en_pt)
+
+m1_en_mix06 <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "English" & freq == "Mixed 0.6"))
+
+summary(m1_en_mix06)
+
+m1_pt_pt <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "Portuguese" & freq == "Portuguese"))
+
+summary(m1_pt_pt)
+
+m1_pt_en <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "Portuguese" & freq == "English"))
+
+summary(m1_pt_en)
+
+m1_pt_mix06 <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "Portuguese" & freq == "Mixed 0.6"))
+
+summary(m1_pt_mix06)
+
+m1_en_al_en <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "English Aligned" & freq == "English"))
+
+summary(m1_en_al_en)
+
+m1_en_al_pt <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "English Aligned" & freq == "Portuguese"))
+
+summary(m1_en_al_pt)
+
+m1_en_al_mix06 <- lmer(rt ~ collType + 
+              (1 | id) + (1 | item), 
+              data = results_df %>% filter(space == "English Aligned" & freq == "Mixed 0.6"))
+
+summary(m1_en_al_mix06)
+
