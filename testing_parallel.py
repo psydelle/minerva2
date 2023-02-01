@@ -38,7 +38,6 @@ import pandas as pd # for dataframe manipulation
 import os  # for file management
 import pickle # for saving and loading objects
 from transformers import AutoTokenizer, AutoModel
-from exract_embeddings import get_word_vector # for BERT embeddings
 import matplotlib.pyplot as plt # for plotting
 import numpy as np
 
@@ -47,6 +46,9 @@ import os # for file management
 from joblib import Parallel, delayed # for parallel processing
 from filelock import FileLock
 import argparse
+
+from exract_embeddings import get_word_vector # for BERT embeddings
+# from newest_regression import CollocNet
 #-----------------------------------------------------------------------------#
 
 # set the random seeds for reproducibility
@@ -60,16 +62,36 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--dataset_to_use', help='Dataset to use', default="stimuli.csv")
-parser.add_argument('-t','--en_pt_trans_pickle', help='Path to pickle file containing pt translations of en embeddings', default=None)
-parser.add_argument('--concat_tokens', help='Concatenate BERT tokens instead of averaging', action="store_true", default=False)
+parser.add_argument('-l','--space_lang', help='Use embeddings from this language space (en, pt, en_aligned)', default="en", choices=["en", "pt", "en_aligned"])
+parser.add_argument('-f','--frequency_lang', help='Use frequency counts from this language (en, pt or mix)', default="en", choices=["en", "pt", "mix"])
+parser.add_argument('--en_pt_trans_pickle', help='Path to pickle file containing pt translations of en embeddings (required for aligned space_lang)', default=None)
+parser.add_argument('--freq_fraction_pt', help='Use this fraction of PT in frequency mixing (only applicable for aligned space_lang, default 0.6)', default=0.6, type=float)
+parser.add_argument('--no_concat_tokens', dest="concat_tokens", help='Concatenate BERT tokens instead of averaging', action="store_false", default=True)
 args = parser.parse_args()
+
+EN_BERT = "distilbert-base-cased"
+PT_BERT = "adalbertojunior/distilbert-portuguese-cased"
 
 ## read in the dataset
 if args.dataset_to_use=="stimuli.csv":
     df = pd.read_csv("stimuli.csv") # same dataset as MSc project
-    dataset = list(df['item']) # list of items
-    fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
+    # fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
+    if args.space_lang in ["en", "en_aligned"]:
+        dataset = list(df['item']) # list of items
+    elif args.space_lang == "pt":
+        dataset = list(df['item_pt']) # list of items
+    else:
+        raise NotImplementedError(f"{args.space_lang} space lang not implemented yet")
+
+    if args.frequency_lang == "en":
+        fcoll = list(df['fitem'].str.replace(r'\D', '')) # collocation frequencies
+    elif args.frequency_lang == "pt":
+        fcoll = list(df['fitempt']) # no replacement because it's actually numbers
+    elif args.frequency_lang == "mix":
+        raise NotImplementedError("Mix not implemented yet hehe")
+
 elif args.dataset_to_use == "FinalDataset.csv":
+    raise NotImplementedError("FinalDataset.csv doesn't yet support any of the parameters you're probably trying to use")
     df = pd.read_csv("FinalDataset.csv") 
     dataset = list(df['item']) # list of items
     fcoll = list(df['collFrequency']) # collocation frequencies
@@ -85,9 +107,8 @@ print('loaded the dataset and normalized the collocational frequencies')
 
 M = 10000 
 
-bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}{"-concat" if args.concat_tokens else ""}.dat'
+bert_embeddings_cache_filename = f'colloc2BERT-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{"-concat" if args.concat_tokens else ""}.dat'
 if not os.path.isfile(bert_embeddings_cache_filename):
-
     # set up the model and tokenizer for BERT embeddings
     def get_bert(mod_name="distilbert-base-uncased"): 
         tokenizer = AutoTokenizer.from_pretrained(mod_name)
@@ -99,11 +120,36 @@ if not os.path.isfile(bert_embeddings_cache_filename):
 
     # grab BERT embeddings for the items in the dataset
     colloc2BERT = dict()
-    tokenizer, model = get_bert() 
+    if args.space_lang == "en":
+        tokenizer, model = get_bert(EN_BERT) 
+    elif args.space_lang == "pt":
+        tokenizer, model = get_bert(PT_BERT)
+    elif args.space_lang == "en_aligned":
+        # en_aligned is using en embeddings aligned to pt space, i.e., replace en embeddings with en in pt space
+        with open(args.en_pt_trans_pickle, "rb") as f:
+            en_pt_dict = pickle.load(f)
+    else:
+        raise Exception("Weird space lang")
+
+
+    # if "aligned" in args.space_lang:
+    #     alignment_net = CollocNet(embed_dim=768 if not args.concat_tokens else 768*2)
+    
+    # for item in dataset:
+    #     if args.space_lang == "en_aligned":
+    #         vec = alignment_net.en_to_pt(vec)
+    #     elif args.space_lang == "pt_aligned":
+    #         vec = alignment_net.pt_to_en(vec)
 
     for item in dataset:
-        print('dealing with this shit: ', item, '')
-        colloc2BERT[item] = grab_bert(item, model, tokenizer) 
+        print(f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in args.space_lang else model.config._name_or_path}')
+        if args.space_lang == "en_aligned":
+            # just get pt projection from dictionary
+            vec = torch.tensor(en_pt_dict[item]["pt"])
+        else:
+            vec = grab_bert(item, model, tokenizer) 
+                    
+        colloc2BERT[item] = vec
 
     # write the embeddings dictionary to a file to be re-used next time we run the code
         #
@@ -118,18 +164,19 @@ else:
     colloc2BERTfile = open(bert_embeddings_cache_filename, 'rb')
     colloc2BERT = pickle.load(colloc2BERTfile)
     colloc2BERTfile.close()   
-    print("Read from file\n") 
+    print(f"Read from file {bert_embeddings_cache_filename}") 
 
-if args.en_pt_trans_pickle:
-    with open(args.en_pt_trans_pickle, "rb") as f:
-        en_pt_dict = pickle.load(f)
-    for k in colloc2BERT:
-        # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
-        # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
 
-        # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
-        # TODO: rerun all experiments with cased bert if time
-        colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
+# if args.en_pt_trans_pickle:
+#     with open(args.en_pt_trans_pickle, "rb") as f:
+#         en_pt_dict = pickle.load(f)
+#     for k in colloc2BERT:
+#         # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
+#         # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
+
+#         # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
+#         # TODO: rerun all experiments with cased bert if time
+#         colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
 
 
 colloc_bert_embeddings = torch.stack(list(colloc2BERT.values())) # stack the embeddings into a tensor
