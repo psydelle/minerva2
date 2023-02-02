@@ -78,6 +78,12 @@ parser.add_argument(
     choices=["en", "pt", "mix"],
 )
 parser.add_argument(
+    "-n", "--num_participants",
+    help="How many participants to model?",
+    default=99,
+    type=int,
+)
+parser.add_argument(
     "--en_pt_trans_pickle",
     help="Path to pickle file containing pt translations of en embeddings (required for aligned space_lang)",
     default=None,
@@ -216,9 +222,8 @@ if not os.path.isfile(bert_embeddings_cache_filename):
         else:
             vec = grab_bert(item, model, tokenizer)
 
-        colloc2BERT[
-            item_en
-        ] = vec  # dictionary contains en keys regardless of what the embeddings are
+         # dictionary contains en keys regardless of what the embeddings are
+        colloc2BERT[item_en] = vec 
 
     # write the embeddings dictionary to a file to be re-used next time we run the code
     #
@@ -298,7 +303,7 @@ class Minerva2(object):
 
 ## Let's run our experiment. First we generate random seeds to simulate
 ## 99 l1 participants from Souza and Chalmers (2021)
-n = 99  # sample size
+n = args.num_participants  # sample size
 p = 0
 seed = []
 for s in range(n):
@@ -407,7 +412,7 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = f"results/l1-results-{args.dataset_to_use[:-4]}-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}{'-' + args.label if args.label else ''}.csv"
+out_file = f"results/results-{args.dataset_to_use[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}{'-' + args.label if args.label else ''}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 if os.path.exists(out_file + ".lock"):
