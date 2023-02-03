@@ -95,6 +95,18 @@ parser.add_argument(
     type=float,
 )
 parser.add_argument(
+    "--minerva_k",
+    help="Minerva k (threshold) parameter",
+    default=0.955,
+    type=float,
+)
+parser.add_argument(
+    "--minerva_max_iter",
+    help="Minerva max_iter parameter",
+    default=450,
+    type=int,
+)
+parser.add_argument(
     "--num_workers",
     help="Number of workers to use",
     default=4,
@@ -370,7 +382,7 @@ def iter(p, s, out_filename, device):
 
     for item, vector in colloc2BERT.items():
         # vector = colloc2BERT['forget dream']
-        act, rt = minz.recognize(vector.to(device))
+        act, rt = minz.recognize(vector.to(device), k=args.minerva_k, maxiter=args.minerva_max_iter)
         output.append([item, act.detach().cpu(), rt])
         print(
             f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
@@ -397,7 +409,7 @@ def iter(p, s, out_filename, device):
                 # append the dataframe to the existing file without column names
                 results_l1.to_csv(out_filename, mode="a", header=False, index=False)
 
-    print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------")
+    print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------", flush=True)
     return output
 
 
@@ -412,13 +424,13 @@ else:
 # device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using devices: {worker_devices}")
 
-out_file = f"results/results-{args.dataset_to_use[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}{'-' + args.label if args.label else ''}.csv"
+out_file = f"results/results-{args.dataset_to_use[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
 if os.path.exists(out_file):
     os.remove(out_file)
 if os.path.exists(out_file + ".lock"):
     os.remove(out_file + ".lock")
 
-results = Parallel(n_jobs=NUM_WORKERS)(
+results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
     delayed(iter)(p, s, out_file, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(seed)
 )
 if os.path.exists(out_file + ".lock"):

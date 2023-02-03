@@ -183,7 +183,7 @@ def test(dataloader, model, loss_fn, test_invert=False):
     model.eval()  # here we put the model in evaluation mode, which means that any dropout is disabled
     test_loss_forward, test_loss_inverted, correct = 0, None, 0  # set the counters to zero
 
-    en_pt_map = {"en": [], "pt": []}
+    en_pt_map = {}
 
     with torch.no_grad():  # no_grad doesn't store loss gradients, it doesn't need them as it's not going to update parameters (efficiency ?)
 
