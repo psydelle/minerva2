@@ -58,6 +58,8 @@ options(ggpubr.theme = "bw", digits = 3)
 stimuli <- read.csv("stimuli.csv", header = TRUE)
 alsla <- read.csv("ALSLA-results.csv", header = TRUE)
 alsla$l1 <- ifelse(alsla$l1 == "EN", "English", "Portuguese")
+alsla$proficiency <- ifelse(alsla$proficiency == "native", "L1",
+                    ifelse(alsla$proficiency == "high", "Proficient", "Novice"))
 
 ## Data Wrangling ------------------------------------------------------------#
 
@@ -84,7 +86,7 @@ ci_df <- data.frame(x = names(ci), lower = ci[,1], upper = ci[,2])
 
 alsla_plot <-  ggbarplot(alsla, 
                      x = "collType", y = "RT",
-                     facet.by = "l1",
+                     facet.by = "proficiency",
                      #title = "Mean response time by collocation type for L1 English (n=99)",
                      add = "mean_ci", 
                      fill = "collType",
