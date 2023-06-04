@@ -300,7 +300,12 @@ def run_experiment(
 
         assert matrix.size() == (M, embed_dim), "Huh?"
 
-        noise_gaussian = torch.normal(0, 1, (M, embed_dim), generator=torch_generator)
+        # TODO: document noise procedure
+        noise_mean = matrix.mean(dim=0).expand(M, embed_dim)
+        noise_std = matrix.std(dim=0).expand(M, embed_dim) / 2 # tie noise to the std of the matrix
+
+        print(f"Noising with std {noise_std.mean()}")
+        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
         # noise is a tensor of random numbers between 0 and 1
         noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
         noisy_mem = torch.where(
