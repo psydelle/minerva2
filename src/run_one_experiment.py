@@ -169,7 +169,9 @@ def run_experiment(
     print("loaded the dataset and normalized the collocational frequencies")
 
     M = 10000
+    embed_dim = 768 if not concat_tokens else 768 * 2
 
+    colloc2BERT = dict()
     bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(dataset_to_use).name[:-4]}-lang_{space_lang}{"-concat" if concat_tokens else ""}{"-" + label if label else ""}.dat'
     if not os.path.isfile(bert_embeddings_cache_filename):
         # set up the model and tokenizer for BERT embeddings
@@ -182,10 +184,9 @@ def run_experiment(
             return get_word_vector(colloc, tokenizer, model, layers, concat_tokens=concat_tokens)
 
         # grab BERT embeddings for the items in the dataset
-        colloc2BERT = dict()
-        if space_lang == "en":
+        if space_lang in ["en", "en_noise"]:
             tokenizer, model = get_bert(EN_BERT)
-        elif space_lang == "pt":
+        elif space_lang in ["pt", "pt_noise"]:
             tokenizer, model = get_bert(PT_BERT)
         elif space_lang == "en_aligned":
             # en_aligned is using en embeddings aligned to pt space, i.e., replace en embeddings with en in pt space
@@ -204,7 +205,7 @@ def run_experiment(
         #         vec = alignment_net.pt_to_en(vec)
 
         for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
-            item = item_en if space_lang in ["en", "en_aligned"] else item_pt
+            item = item_en if space_lang in ["en", "en_aligned", "en_noise"] else item_pt
 
             print(
                 f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in space_lang else model.config._name_or_path}'
@@ -233,6 +234,7 @@ def run_experiment(
         colloc2BERTfile.close()
         print(f"Read from file {bert_embeddings_cache_filename}")
 
+
     # if en_pt_trans_pickle:
     #     with open(en_pt_trans_pickle, "rb") as f:
     #         en_pt_dict = pickle.load(f)
@@ -244,6 +246,16 @@ def run_experiment(
     #         # TODO: rerun all experiments with cased bert if time
     #         colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
 
+    if "noise" in space_lang:
+        # generate random vectors for the items in the dataset
+        colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
+
+        noise_means = colloc_bert_embeddings.mean(dim=0)
+        noise_stds = colloc_bert_embeddings.std(dim=0)
+
+        for item in colloc2BERT:
+            colloc2BERT[item].data = torch.randn(embed_dim) * noise_stds + noise_means
+
     # stack the embeddings into a tensor
     colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
 
@@ -253,11 +265,9 @@ def run_experiment(
 
     ## Let's run our experiment. First we generate random seeds to simulate
     ## 99 l1 participants from Souza and Chalmers (2021)
-    n = num_participants  # sample size
-    p = 0
-    seed = []
-    for s in range(n):
-        seed.append(random.randint(0, 9999999))
+    participant_seeds = []
+    for _ in range(num_participants):
+        participant_seeds.append(random.randint(0, 9999999))
 
     ## Now we run the experiment
 
@@ -294,14 +304,10 @@ def run_experiment(
 
         matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
 
-        embed_dim = 768
-        if concat_tokens:
-            embed_dim = 768 * 2
-
         assert matrix.size() == (M, embed_dim), "Huh?"
 
         # TODO: document noise procedure
-        noise_mean = matrix.mean(dim=0).expand(M, embed_dim)
+        noise_mean = torch.tensor([0.0]).expand(M, embed_dim)
         noise_std = matrix.std(dim=0).expand(M, embed_dim) / 2 # tie noise to the std of the matrix
 
         print(f"Noising with std {noise_std.mean()}")
@@ -389,7 +395,7 @@ def run_experiment(
     #     os.remove(out_file + ".lock")
 
     results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
-        delayed(iter)(p, s, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(seed)
+        delayed(iter)(p, s, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(participant_seeds)
     )
 
     results_df = pd.concat(results, ignore_index=True)
@@ -416,7 +422,7 @@ if __name__ == "__main__":
         "--space_lang",
         help="Use embeddings from this language space (en, pt, en_aligned)",
         default="en",
-        choices=["en", "pt", "en_aligned"],
+        choices=["en", "pt", "en_aligned", "en_noise", "pt_noise"],
     )
     parser.add_argument(
         "-f",

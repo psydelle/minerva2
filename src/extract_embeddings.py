@@ -27,6 +27,7 @@ def get_hidden_states(encoded, model, layers, token_ids, concat_tokens=False):
     word_embeddings = []
     for _tok_ids in token_ids:
         # average over subword tokens
+        # https://discuss.huggingface.co/t/generate-raw-word-embeddings-using-transformer-models-like-bert-for-downstream-process/2958/2
         subword_avg_embedding = output[_tok_ids].mean(dim=0)
         word_embeddings.append(subword_avg_embedding)
 

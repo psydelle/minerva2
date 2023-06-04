@@ -59,7 +59,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     results_dfs = []
-    for space_lang in ["en", "pt"]:
+    for space_lang in ["en", "pt", "en_noise", "pt_noise"]:
         for frequency_lang in ["en", "pt", "mix"]:
             print(f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}")
             results_df = run_experiment(
