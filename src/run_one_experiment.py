@@ -32,6 +32,7 @@
 # -----------------------------------------------------------------------------#
 
 ## Set-Up ---------------------------------------------------------------------
+import logging
 from typing import Optional
 import torch  # for tensors
 import random  # for random number generation
@@ -90,8 +91,7 @@ class Minerva2(object):
 
     def activate(self, probe, tau=1.0):
         similarity = torch.cosine_similarity(probe, self.Mat, dim=1)  # had the wrong axis
-        # TODO: absolute value the exponentiation
-        activation = (similarity**tau) * torch.sign(similarity)  # make sure we preserve the signs
+        activation = torch.abs(similarity**tau) * torch.sign(similarity)  # make sure we preserve the signs
         return activation
 
     def echo(self, probe, tau=1.0):
@@ -178,8 +178,7 @@ def run_experiment(
             model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
             return tokenizer, model
 
-        def grab_bert(colloc, model, tokenizer, layers=[-4, -3, -2, -1]):
-            # TODO: use only one layer
+        def grab_bert(colloc, model, tokenizer, layers=[-1]):
             return get_word_vector(colloc, tokenizer, model, layers, concat_tokens=concat_tokens)
 
         # grab BERT embeddings for the items in the dataset
@@ -315,7 +314,14 @@ def run_experiment(
 
         output = []  # initialize an empty list to store the output
 
-        for item, vector in list(colloc2BERT.items()):
+        if os.environ.get("MINERVA_DEBUG"):
+            DEBUG_N=10
+            logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
+            items = list(colloc2BERT.items())[:DEBUG_N]
+        else:
+            items = colloc2BERT.items()
+
+        for item, vector in items:
             # vector = colloc2BERT['forget dream']
             act, rt = minz.recognize(vector.to(device), k=minerva_k, maxiter=minerva_max_iter)
             output.append([item, act.detach().cpu().item(), rt])
