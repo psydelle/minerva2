@@ -79,7 +79,8 @@ parser.add_argument(
     choices=["en", "pt", "mix"],
 )
 parser.add_argument(
-    "-n", "--num_participants",
+    "-n",
+    "--num_participants",
     help="How many participants to model?",
     default=99,
     type=int,
@@ -140,145 +141,6 @@ def norm_jm(fitem, fnode, fcoll):
     return norm
 
 
-## read in the dataset
-if Path(args.dataset_to_use).name == "stimuli.csv":
-    df = pd.read_csv(args.dataset_to_use)  # same dataset as MSc project
-    # fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
-    dataset = df[["item", "item_pt"]]
-    # if args.space_lang in ["en", "en_aligned"]:
-    #     dataset = list(df['item']) # list of items
-    # elif args.space_lang == "pt":
-    #     dataset = list(df['item_pt']) # list of items
-    # else:
-    #     raise NotImplementedError(f"{args.space_lang} space lang not implemented yet")
-
-    # convert comma-sep number strings to numbers
-    _coll_freq_en = df[["fitem", "fnode", "fcoll"]].applymap(
-        lambda x: float(str(x).replace(",", ""))
-    )
-    # no replacement because it's actually numbers
-    _coll_freq_pt = df[["fitempt", "fnodept", "fcollpt"]].astype(float)
-
-    norm_freq_en = norm_jm(_coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"])
-    norm_freq_pt = norm_jm(
-        _coll_freq_pt["fitempt"], _coll_freq_pt["fnodept"], _coll_freq_pt["fcollpt"]
-    )
-
-    # if args.frequency_lang == "en":
-    #     fcoll = norm_freq_en
-    # elif args.frequency_lang == "pt":
-    #     fcoll = norm_freq_pt
-    # elif args.frequency_lang == "mix":
-    #     raise NotImplementedError("Mix not implemented yet hehe")
-
-elif args.dataset_to_use == "FinalDataset.csv":
-    raise NotImplementedError(
-        "FinalDataset.csv doesn't yet support any of the parameters you're probably trying to use"
-    )
-    df = pd.read_csv("FinalDataset.csv")
-    dataset = list(df["item"])  # list of items
-    fcoll = list(df["collFrequency"])  # collocation frequencies
-
-
-# ## convert the collocational frequencies to a list of floats
-# fcoll = [float(i) for i in fcoll]
-
-# ## let's normalize fcoll to be between 0 and 1
-# normalized_fcoll = [float(i)/sum(fcoll) for i in fcoll]
-
-print("loaded the dataset and normalized the collocational frequencies")
-
-M = 10000
-
-bert_embeddings_cache_filename = f'data/colloc2BERT-{Path(args.dataset_to_use).name[:-4]}-lang_{args.space_lang}{"-concat" if args.concat_tokens else ""}{"-" + args.label if args.label else ""}.dat'
-if not os.path.isfile(bert_embeddings_cache_filename):
-    # set up the model and tokenizer for BERT embeddings
-    def get_bert(mod_name="distilbert-base-uncased"):
-        tokenizer = AutoTokenizer.from_pretrained(mod_name)
-        model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
-        return tokenizer, model
-
-    def grab_bert(colloc, model, tokenizer, layers=[-4, -3, -2, -1]):
-        # TODO: use only one layer
-        return get_word_vector(colloc, tokenizer, model, layers, concat_tokens=args.concat_tokens)
-
-    # grab BERT embeddings for the items in the dataset
-    colloc2BERT = dict()
-    if args.space_lang == "en":
-        tokenizer, model = get_bert(EN_BERT)
-    elif args.space_lang == "pt":
-        tokenizer, model = get_bert(PT_BERT)
-    elif args.space_lang == "en_aligned":
-        # en_aligned is using en embeddings aligned to pt space, i.e., replace en embeddings with en in pt space
-        with open(args.en_pt_trans_pickle, "rb") as f:
-            en_pt_dict = pickle.load(f)
-    else:
-        raise Exception("Weird space lang")
-
-    # if "aligned" in args.space_lang:
-    #     alignment_net = CollocNet(embed_dim=768 if not args.concat_tokens else 768*2)
-
-    # for item in dataset:
-    #     if args.space_lang == "en_aligned":
-    #         vec = alignment_net.en_to_pt(vec)
-    #     elif args.space_lang == "pt_aligned":
-    #         vec = alignment_net.pt_to_en(vec)
-
-    for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
-        item = item_en if args.space_lang in ["en", "en_aligned"] else item_pt
-
-        print(
-            f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in args.space_lang else model.config._name_or_path}'
-        )
-        if args.space_lang == "en_aligned":
-            # just get pt projection from dictionary
-            vec = torch.tensor(en_pt_dict[item]["pt"])
-        else:
-            vec = grab_bert(item, model, tokenizer)
-
-         # dictionary contains en keys regardless of what the embeddings are
-        colloc2BERT[item_en] = vec
-
-    # write the embeddings dictionary to a file to be re-used next time we run the code
-    #
-    colloc2BERTfile = open(bert_embeddings_cache_filename, "wb")
-    pickle.dump(colloc2BERT, colloc2BERTfile)
-    colloc2BERTfile.close()
-    print("Dictionary written  to file\n")
-
-else:
-    # get the previously calculated embeddings from the file in which they were stored
-    #
-    colloc2BERTfile = open(bert_embeddings_cache_filename, "rb")
-    colloc2BERT = pickle.load(colloc2BERTfile)
-    colloc2BERTfile.close()
-    print(f"Read from file {bert_embeddings_cache_filename}")
-
-
-# if args.en_pt_trans_pickle:
-#     with open(args.en_pt_trans_pickle, "rb") as f:
-#         en_pt_dict = pickle.load(f)
-#     for k in colloc2BERT:
-#         # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
-#         # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
-
-#         # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
-#         # TODO: rerun all experiments with cased bert if time
-#         colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
-
-
-colloc_bert_embeddings = torch.stack(
-    list(colloc2BERT.values())
-)  # stack the embeddings into a tensor
-
-## Now we got to add some noise to the memory matrix (parameter L)
-L = 0.6  # 0.6 is what the meta paper says
-# noise between 0 and 1
-
-
-import matplotlib.pyplot as plt
-
-
 class Minerva2(object):
     """
     This is a class for the Minerva2 model
@@ -315,128 +177,258 @@ class Minerva2(object):
 
 ##-----------------------------------------------------------------------------##
 
+if __name__ == "__main__":
+    ## read in the dataset
+    if Path(args.dataset_to_use).name == "stimuli.csv":
+        df = pd.read_csv(args.dataset_to_use)  # same dataset as MSc project
+        # fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
+        dataset = df[["item", "item_pt"]]
+        # if args.space_lang in ["en", "en_aligned"]:
+        #     dataset = list(df['item']) # list of items
+        # elif args.space_lang == "pt":
+        #     dataset = list(df['item_pt']) # list of items
+        # else:
+        #     raise NotImplementedError(f"{args.space_lang} space lang not implemented yet")
 
-## Let's run our experiment. First we generate random seeds to simulate
-## 99 l1 participants from Souza and Chalmers (2021)
-n = args.num_participants  # sample size
-p = 0
-seed = []
-for s in range(n):
-    seed.append(random.randint(0, 9999999))
+        # convert comma-sep number strings to numbers
+        _coll_freq_en = df[["fitem", "fnode", "fcoll"]].applymap(
+            lambda x: float(str(x).replace(",", ""))
+        )
+        # no replacement because it's actually numbers
+        _coll_freq_pt = df[["fitempt", "fnodept", "fcollpt"]].astype(float)
 
-## Now we run the experiment
+        norm_freq_en = norm_jm(
+            _coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"]
+        )
+        norm_freq_pt = norm_jm(
+            _coll_freq_pt["fitempt"], _coll_freq_pt["fnodept"], _coll_freq_pt["fcollpt"]
+        )
 
+        # if args.frequency_lang == "en":
+        #     fcoll = norm_freq_en
+        # elif args.frequency_lang == "pt":
+        #     fcoll = norm_freq_pt
+        # elif args.frequency_lang == "mix":
+        #     raise NotImplementedError("Mix not implemented yet hehe")
 
-def iter(p, s, out_filename, device):
-    # print(f"\nSeed {s}\n")
-    random.seed(s)
-    torch.manual_seed(s)
+    elif args.dataset_to_use == "FinalDataset.csv":
+        raise NotImplementedError(
+            "FinalDataset.csv doesn't yet support any of the parameters you're probably trying to use"
+        )
+        df = pd.read_csv("FinalDataset.csv")
+        dataset = list(df["item"])  # list of items
+        fcoll = list(df["collFrequency"])  # collocation frequencies
 
-    # sample from the collocations to make a M x 768 matrix
-    sample_k = M - len(colloc_bert_embeddings)
+    print("loaded the dataset and normalized the collocational frequencies")
 
-    if args.frequency_lang == "en":
-        sampled_collocs = torch.stack(
-            random.choices(
-                colloc_bert_embeddings, k=sample_k, weights=norm_freq_en
+    M = 10000
+
+    bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(args.dataset_to_use).name[:-4]}-lang_{args.space_lang}{"-concat" if args.concat_tokens else ""}{"-" + args.label if args.label else ""}.dat'
+    if not os.path.isfile(bert_embeddings_cache_filename):
+        # set up the model and tokenizer for BERT embeddings
+        def get_bert(mod_name="distilbert-base-uncased"):
+            tokenizer = AutoTokenizer.from_pretrained(mod_name)
+            model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
+            return tokenizer, model
+
+        def grab_bert(colloc, model, tokenizer, layers=[-4, -3, -2, -1]):
+            # TODO: use only one layer
+            return get_word_vector(
+                colloc, tokenizer, model, layers, concat_tokens=args.concat_tokens
             )
-        )
-    elif args.frequency_lang == "pt":
-        sampled_collocs = torch.stack(
-            random.choices(
-                colloc_bert_embeddings, k=sample_k, weights=norm_freq_pt
+
+        # grab BERT embeddings for the items in the dataset
+        colloc2BERT = dict()
+        if args.space_lang == "en":
+            tokenizer, model = get_bert(EN_BERT)
+        elif args.space_lang == "pt":
+            tokenizer, model = get_bert(PT_BERT)
+        elif args.space_lang == "en_aligned":
+            # en_aligned is using en embeddings aligned to pt space, i.e., replace en embeddings with en in pt space
+            with open(args.en_pt_trans_pickle, "rb") as f:
+                en_pt_dict = pickle.load(f)
+        else:
+            raise Exception("Weird space lang")
+
+        # if "aligned" in args.space_lang:
+        #     alignment_net = CollocNet(embed_dim=768 if not args.concat_tokens else 768*2)
+
+        # for item in dataset:
+        #     if args.space_lang == "en_aligned":
+        #         vec = alignment_net.en_to_pt(vec)
+        #     elif args.space_lang == "pt_aligned":
+        #         vec = alignment_net.pt_to_en(vec)
+
+        for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
+            item = item_en if args.space_lang in ["en", "en_aligned"] else item_pt
+
+            print(
+                f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in args.space_lang else model.config._name_or_path}'
             )
-        )
-    elif args.frequency_lang == "mix":
-        sample_k_pt = round(sample_k * args.freq_fraction_pt)
-        sample_k_en = sample_k - sample_k_pt
-        _sampled_collocs_pt = torch.stack(
-            random.choices(
-                colloc_bert_embeddings, k=sample_k_pt, weights=norm_freq_pt
-            )
-        )
-        _sampled_collocs_en = torch.stack(
-            random.choices(
-                colloc_bert_embeddings, k=sample_k_en, weights=norm_freq_en
-            )
-        )
-        sampled_collocs = torch.concat([_sampled_collocs_pt, _sampled_collocs_en], dim=0)
-
-    matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
-
-    embed_dim = 768
-    if args.concat_tokens:
-        embed_dim = 768 * 2
-
-    assert matrix.size() == (M, embed_dim), "Huh?"
-
-    noise_gaussian = torch.normal(0, 1, (M, embed_dim))
-    noise_mask = torch.rand((M, embed_dim))  # noise is a tensor of random numbers between 0 and 1
-    noisy_mem = torch.where(
-        noise_mask < L, matrix + noise_gaussian, matrix
-    )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
-    noisy_mem = noisy_mem.to(device)
-
-    minz = Minerva2(Mat=noisy_mem)  # initialize the Minerva2 model with the noisy memory matrix
-
-    # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
-
-    output = []  # initialize an empty list to store the output
-
-    for item, vector in colloc2BERT.items():
-        # vector = colloc2BERT['forget dream']
-        act, rt = minz.recognize(vector.to(device), k=args.minerva_k, maxiter=args.minerva_max_iter)
-        output.append([item, act.detach().cpu(), rt])
-        print(
-            f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
-        )
-
-        # set up a dataframe to write the current results to a uniquely-named CSV file
-
-        results_l1 = pd.DataFrame(
-            data={
-                "mode": "l1",
-                "id": [s],
-                "participant": [p + 1],
-                "item": [item],
-                "act": [act.item()],
-                "rt": [rt],
-            }
-        )
-
-        with FileLock(out_filename + ".lock"):
-            if not os.path.exists(out_filename):
-                # delete the file if it exists and write the dataframe with column names to the top of the new file
-                results_l1.to_csv(out_filename, mode="w", header=True, index=False)
+            if args.space_lang == "en_aligned":
+                # just get pt projection from dictionary
+                vec = torch.tensor(en_pt_dict[item]["pt"])
             else:
-                # append the dataframe to the existing file without column names
-                results_l1.to_csv(out_filename, mode="a", header=False, index=False)
+                vec = grab_bert(item, model, tokenizer)
 
-    print(f" Done with Participant {p+1} | Seed {s}  \n----------------------------------", flush=True)
-    return output
+            # dictionary contains en keys regardless of what the embeddings are
+            colloc2BERT[item_en] = vec
 
+        # write the embeddings dictionary to a file to be re-used next time we run the code
+        #
+        colloc2BERTfile = open(bert_embeddings_cache_filename, "wb")
+        pickle.dump(colloc2BERT, colloc2BERTfile)
+        colloc2BERTfile.close()
+        print("Dictionary written  to file\n")
 
-NUM_WORKERS = args.num_workers
+    else:
+        # get the previously calculated embeddings from the file in which they were stored
+        #
+        colloc2BERTfile = open(bert_embeddings_cache_filename, "rb")
+        colloc2BERT = pickle.load(colloc2BERTfile)
+        colloc2BERTfile.close()
+        print(f"Read from file {bert_embeddings_cache_filename}")
 
-if torch.cuda.is_available():
-    n_gpus = torch.cuda.device_count()
-    worker_devices = [torch.device(i) for i in range(n_gpus)]
-    worker_devices = worker_devices * int(np.ceil(NUM_WORKERS / n_gpus))
-else:
-    worker_devices = ["cpu"] * NUM_WORKERS
-# device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Using devices: {worker_devices}")
+    # if args.en_pt_trans_pickle:
+    #     with open(args.en_pt_trans_pickle, "rb") as f:
+    #         en_pt_dict = pickle.load(f)
+    #     for k in colloc2BERT:
+    #         # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
+    #         # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
 
-out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
-if os.path.exists(out_file):
-    os.remove(out_file)
-if os.path.exists(out_file + ".lock"):
-    os.remove(out_file + ".lock")
+    #         # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
+    #         # TODO: rerun all experiments with cased bert if time
+    #         colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
 
-results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
-    delayed(iter)(p, s, out_file, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(seed)
-)
-if os.path.exists(out_file + ".lock"):
-    os.remove(out_file + ".lock")
+    # stack the embeddings into a tensor
+    colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
 
-print("********************************\n\nAll done!\n\n********************************")
+    ## Now we got to add some noise to the memory matrix (parameter L)
+    L = 0.6  # 0.6 is what the meta paper says
+    # noise between 0 and 1
+
+    ## Let's run our experiment. First we generate random seeds to simulate
+    ## 99 l1 participants from Souza and Chalmers (2021)
+    n = args.num_participants  # sample size
+    p = 0
+    seed = []
+    for s in range(n):
+        seed.append(random.randint(0, 9999999))
+
+    ## Now we run the experiment
+
+    def iter(p, s, out_filename, device):
+        # print(f"\nSeed {s}\n")
+        random_generator = random.Random(s)
+        torch_generator = torch.Generator().manual_seed(s)
+
+        # sample from the collocations to make a M x 768 matrix
+        sample_k = M - len(colloc_bert_embeddings)
+
+        if args.frequency_lang == "en":
+            sampled_collocs = torch.stack(
+                random_generator.choices(colloc_bert_embeddings, k=sample_k, weights=norm_freq_en)
+            )
+        elif args.frequency_lang == "pt":
+            sampled_collocs = torch.stack(
+                random_generator.choices(colloc_bert_embeddings, k=sample_k, weights=norm_freq_pt)
+            )
+        elif args.frequency_lang == "mix":
+            sample_k_pt = round(sample_k * args.freq_fraction_pt)
+            sample_k_en = sample_k - sample_k_pt
+            _sampled_collocs_pt = torch.stack(
+                random_generator.choices(
+                    colloc_bert_embeddings, k=sample_k_pt, weights=norm_freq_pt
+                )
+            )
+            _sampled_collocs_en = torch.stack(
+                random_generator.choices(
+                    colloc_bert_embeddings, k=sample_k_en, weights=norm_freq_en
+                )
+            )
+            sampled_collocs = torch.concat([_sampled_collocs_pt, _sampled_collocs_en], dim=0)
+
+        matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
+
+        embed_dim = 768
+        if args.concat_tokens:
+            embed_dim = 768 * 2
+
+        assert matrix.size() == (M, embed_dim), "Huh?"
+
+        noise_gaussian = torch.normal(0, 1, (M, embed_dim), generator=torch_generator)
+        # noise is a tensor of random numbers between 0 and 1
+        noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
+        noisy_mem = torch.where(
+            noise_mask < L, matrix + noise_gaussian, matrix
+        )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
+        noisy_mem = noisy_mem.to(device)
+
+        minz = Minerva2(Mat=noisy_mem)  # initialize the Minerva2 model with the noisy memory matrix
+
+        # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
+
+        output = []  # initialize an empty list to store the output
+
+        for item, vector in colloc2BERT.items():
+            # vector = colloc2BERT['forget dream']
+            act, rt = minz.recognize(
+                vector.to(device), k=args.minerva_k, maxiter=args.minerva_max_iter
+            )
+            output.append([item, act.detach().cpu(), rt])
+            print(
+                f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
+            )
+
+            # set up a dataframe to write the current results to a uniquely-named CSV file
+
+            results_l1 = pd.DataFrame(
+                data={
+                    "mode": "l1",
+                    "id": [s],
+                    "participant": [p + 1],
+                    "item": [item],
+                    "act": [act.item()],
+                    "rt": [rt],
+                }
+            )
+
+            with FileLock(out_filename + ".lock"):
+                if not os.path.exists(out_filename):
+                    # delete the file if it exists and write the dataframe with column names
+                    # to the top of the new file
+                    results_l1.to_csv(out_filename, mode="w", header=True, index=False)
+                else:
+                    # append the dataframe to the existing file without column names
+                    results_l1.to_csv(out_filename, mode="a", header=False, index=False)
+
+        print(
+            f" Done with Participant {p+1} | Seed {s}  \n----------------------------------",
+            flush=True,
+        )
+        return output
+
+    NUM_WORKERS = args.num_workers
+
+    if torch.cuda.is_available():
+        n_gpus = torch.cuda.device_count()
+        worker_devices = [torch.device(i) for i in range(n_gpus)]
+        worker_devices = worker_devices * int(np.ceil(NUM_WORKERS / n_gpus))
+    else:
+        worker_devices = ["cpu"] * NUM_WORKERS
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using devices: {worker_devices}")
+
+    out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+    if os.path.exists(out_file):
+        os.remove(out_file)
+    if os.path.exists(out_file + ".lock"):
+        os.remove(out_file + ".lock")
+
+    results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
+        delayed(iter)(p, s, out_file, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(seed)
+    )
+    if os.path.exists(out_file + ".lock"):
+        os.remove(out_file + ".lock")
+
+    print("********************************\n\nAll done!\n\n********************************")
