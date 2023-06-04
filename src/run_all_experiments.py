@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     results_dfs = []
     for space_lang in ["en", "pt", "en_noise", "pt_noise"]:
-        for frequency_lang in ["en", "pt", "mix"]:
+        for frequency_lang in ["en", "pt", "mix", "equal"]:
             print(f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}")
             results_df = run_experiment(
                 dataset_to_use=args.dataset_to_use,

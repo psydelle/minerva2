@@ -91,7 +91,9 @@ class Minerva2(object):
 
     def activate(self, probe, tau=1.0):
         similarity = torch.cosine_similarity(probe, self.Mat, dim=1)  # had the wrong axis
-        activation = torch.abs(similarity**tau) * torch.sign(similarity)  # make sure we preserve the signs
+        activation = torch.abs(similarity**tau) * torch.sign(
+            similarity
+        )  # make sure we preserve the signs
         return activation
 
     def echo(self, probe, tau=1.0):
@@ -234,7 +236,6 @@ def run_experiment(
         colloc2BERTfile.close()
         print(f"Read from file {bert_embeddings_cache_filename}")
 
-
     # if en_pt_trans_pickle:
     #     with open(en_pt_trans_pickle, "rb") as f:
     #         en_pt_dict = pickle.load(f)
@@ -248,6 +249,7 @@ def run_experiment(
 
     if "noise" in space_lang:
         # generate random vectors for the items in the dataset
+        # noise is generated from the mean and std of each embedding dimension
         colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
 
         noise_means = colloc_bert_embeddings.mean(dim=0)
@@ -258,6 +260,13 @@ def run_experiment(
 
     # stack the embeddings into a tensor
     colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
+
+    # normalize the embeddings to standard normal
+    # TODO: why does normalizing per dimension produce drastically different results?
+    # specifically, if norm by dim here and applying non-normed noise
+    colloc_bert_embeddings = (
+        colloc_bert_embeddings - colloc_bert_embeddings.mean()
+    ) / colloc_bert_embeddings.std()
 
     ## Now we got to add some noise to the memory matrix (parameter L)
     L = 0.6  # 0.6 is what the meta paper says
@@ -279,7 +288,11 @@ def run_experiment(
         # sample from the collocations to make a M x 768 matrix
         sample_k = M - len(colloc_bert_embeddings)
 
-        if frequency_lang == "en":
+        if frequency_lang == "equal":
+            sampled_collocs = torch.stack(
+                random_generator.choices(colloc_bert_embeddings, k=sample_k)
+            )
+        elif frequency_lang == "en":
             sampled_collocs = torch.stack(
                 random_generator.choices(colloc_bert_embeddings, k=sample_k, weights=norm_freq_en)
             )
@@ -307,12 +320,12 @@ def run_experiment(
         assert matrix.size() == (M, embed_dim), "Huh?"
 
         # TODO: document noise procedure
+        # again, why is noising per dimension so different?
         noise_mean = torch.tensor([0.0]).expand(M, embed_dim)
-        noise_std = matrix.std(dim=0).expand(M, embed_dim) / 2 # tie noise to the std of the matrix
+        noise_std = matrix.std().expand(M, embed_dim) / 2  # tie noise to the std of the matrix
 
         print(f"Noising with std {noise_std.mean()}")
         noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
-        # noise is a tensor of random numbers between 0 and 1
         noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
         noisy_mem = torch.where(
             noise_mask < L, matrix + noise_gaussian, matrix
@@ -326,7 +339,7 @@ def run_experiment(
         output = []  # initialize an empty list to store the output
 
         if os.environ.get("MINERVA_DEBUG"):
-            DEBUG_N=10
+            DEBUG_N = 10
             logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
             items = list(colloc2BERT.items())[:DEBUG_N]
         else:
@@ -395,7 +408,8 @@ def run_experiment(
     #     os.remove(out_file + ".lock")
 
     results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
-        delayed(iter)(p, s, worker_devices[p % NUM_WORKERS]) for p, s in enumerate(participant_seeds)
+        delayed(iter)(p, s, worker_devices[p % NUM_WORKERS])
+        for p, s in enumerate(participant_seeds)
     )
 
     results_df = pd.concat(results, ignore_index=True)
@@ -404,7 +418,6 @@ def run_experiment(
     results_df["minerva_k"] = minerva_k
     results_df["minerva_max_iter"] = minerva_max_iter
     results_df["freq_fraction_pt"] = freq_fraction_pt if frequency_lang == "mix" else -1
-
 
     return results_df
 
@@ -420,16 +433,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l",
         "--space_lang",
-        help="Use embeddings from this language space (en, pt, en_aligned)",
+        help="Use embeddings from this language space (en, pt, en_aligned, en_noise, pt_noise)",
         default="en",
         choices=["en", "pt", "en_aligned", "en_noise", "pt_noise"],
     )
     parser.add_argument(
         "-f",
         "--frequency_lang",
-        help="Use frequency counts from this language (en, pt or mix)",
+        help="Use frequency counts from this language (en, pt, mix, equal)",
         default="en",
-        choices=["en", "pt", "mix"],
+        choices=["en", "pt", "mix", "equal"],
     )
     parser.add_argument(
         "-n",
@@ -452,13 +465,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
-        default=0.955,
+        default=0.93,
         type=float,
     )
     parser.add_argument(
         "--minerva_max_iter",
         help="Minerva max_iter parameter",
-        default=450,
+        default=100,
         type=int,
     )
     parser.add_argument(
