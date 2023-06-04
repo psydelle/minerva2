@@ -5,4 +5,4 @@ __pycache__/
 *.dat
 .vscode
 *.pth
-data/*
+data/processed/*
