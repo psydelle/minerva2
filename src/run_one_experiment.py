@@ -175,6 +175,7 @@ def run_experiment(
 
     colloc2BERT = dict()
     bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(dataset_to_use).name[:-4]}-lang_{space_lang}{"-concat" if concat_tokens else ""}{"-" + label if label else ""}.dat'
+    os.makedirs(os.path.dirname(bert_embeddings_cache_filename), exist_ok=True)
     if not os.path.isfile(bert_embeddings_cache_filename):
         # set up the model and tokenizer for BERT embeddings
         def get_bert(mod_name="distilbert-base-uncased"):
