@@ -22,17 +22,17 @@ echo "pt_mix start";
 python testing_parallel.py -l pt -f mix -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700;
 echo "pt_mix done";
 
-echo "en_aligned_en start";
-python testing_parallel.py -l en_aligned -f en -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
-echo "en_aligned_en done";
+# echo "en_aligned_en start";
+# python testing_parallel.py -l en_aligned -f en -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
+# echo "en_aligned_en done";
 
-echo "en_aligned_pt start";
-python testing_parallel.py -l en_aligned -f pt -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
-echo "en_aligned_pt done";
+# echo "en_aligned_pt start";
+# python testing_parallel.py -l en_aligned -f pt -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
+# echo "en_aligned_pt done";
 
-echo "en_aligned_mix start"
-python testing_parallel.py -l en_aligned -f mix -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
-echo "en_aligned_mix done";
+# echo "en_aligned_mix start"
+# python testing_parallel.py -l en_aligned -f mix -n 230 --num_workers 8 --minerva_k 0.97 --minerva_max_iter 700 --en_pt_trans_pickle stimuli_en_to_pt-concat.pkl;
+# echo "en_aligned_mix done";
 
 # 4w
 # real    1m3.045s
