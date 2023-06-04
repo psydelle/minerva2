@@ -29,13 +29,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
-        default=0.955,
+        default=0.93,
         type=float,
     )
     parser.add_argument(
         "--minerva_max_iter",
         help="Minerva max_iter parameter",
-        default=450,
+        default=300,
         type=int,
     )
     parser.add_argument(
