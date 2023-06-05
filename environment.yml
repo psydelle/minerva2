@@ -1,0 +1,14 @@
+name: minerva
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+    - python=3.9
+    - pip>=19.0
+    - pytorch
+    - pytorch-cuda
+    - numpy
+    - pandas
+    - transformers
+    - matplotlib
+    - filelock
