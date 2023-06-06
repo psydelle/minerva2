@@ -1,0 +1,495 @@
+---
+title: "MSMR 2021-2022 Coursework"
+author: "`r params$examnumber`"
+date: "`r Sys.Date()`"
+output:
+  
+  bookdown::word_document2: default
+  bookdown::html_document2: default
+  bookdown::pdf_document2: default
+bibliography: references.bib
+link-citations: yes
+params:
+  examnumber: B193920
+---
+
+<!-- We have provided a template below with headings/sub-headings for each question/sub-question This is just a template Feel free to add or delete code-chunks if desired  -->
+<!-- Beneath here is some code which will set everything up for you  Anything that is needed to run your code should be explicitly set up below -->
+
+```{r setup, set.seed(333), include=FALSE}
+# this line will mean that when you compile/knit your document, 
+# the code will not show, but the output (eg, plots) will!
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, cache = T)
+#cache = T for set seed throughout the document
+# this line means all numeric output gets rounded to 3 dp
+options(digits=3)
+# load any other packages that you require here:
+library(knitr)
+library(lme4)
+library(dfoptim)
+library(tidyverse)
+library(performance)
+library(stargazer)
+library(rstatix)
+library(skimr)
+library(sjPlot)
+library(ggpubr)
+theme_set(theme_minimal())
+library(pander)
+library(patchwork)
+library(psych)
+library(car)
+library(GGally)
+library(simr)
+library(broom.mixed)
+library(lavaan)
+library(semoutput)
+library(tidySEM)
+
+# read in data:
+metaphor.df <- get(load("C:/Users/psyde/Downloads/metaphor.RData"))
+
+emotional.df <- read.csv("https://uoepsy.github.io/data/msmr_2122_assignment.csv")
+
+```
+
+
+```{r cleaning, include = FALSE}
+# Neither output nor code from this chunk will be shown in the compiled document 
+
+## calling skim() to get an overview of the data
+# skim(metaphor.df) 
+
+## no missing values, age looks good, gender has one non-binary, min-max on RPM and SST look good, 
+## item has varying character counts could this have an affect on accuracy? i guess it would on rts, but not ers.
+
+## let's double check the datset anyway just to be sure
+
+metaphor.df$missing <- NA
+metaphor.df$missing[metaphor.df$Age > 60] <- "Too Old"
+metaphor.df$missing[metaphor.df$Age < 18] <- "Too Young"
+metaphor.df$missing[metaphor.df$RPM < 0] <- "Incorrect RPM"
+metaphor.df$missing[metaphor.df$RPM > 12] <- "Incorrect RPM"
+metaphor.df$missing[metaphor.df$SST < 19] <- "Incorrect SST"
+metaphor.df$missing[metaphor.df$SST > 37] <- "Incorrect SST"
+
+
+sum(is.na(metaphor.df$missing)) ## should be equal to 3040, i.e., total obs.
+
+# seems like i was right, moving on to gender...
+
+unique(metaphor.df$Gender)
+
+## na in gender, replacing with non-binary
+
+metaphor.df$Gender <- as.character(metaphor.df$Gender)
+metaphor.df$Gender[is.na(metaphor.df$Gender)] <- "NonBinary"
+n_unique(metaphor.df$Gender)
+
+## let's convert strings to factors to help us later in the analysis
+metaphor.df <- metaphor.df %>%
+    mutate_if(is.character,as.factor)
+
+```
+
+```{r outliers, include = FALSE}
+
+
+
+# looking for outliers in accuracy, SST, RPM
+
+## function to calculate outliers using iqr method
+
+outliers <- function(x) {
+
+  Q1 <- quantile(x, probs=.25)
+  Q3 <- quantile(x, probs=.75)
+  iqr = Q3-Q1
+
+ upper_limit = Q3 + (iqr*1.5)
+ lower_limit = Q1 - (iqr*1.5)
+
+ x > upper_limit | x < lower_limit
+}
+
+## setting up the dependent variables
+
+metaphor.df$Incorrect <- ifelse(metaphor.df$Correct == 1, 0, 1)
+
+NumCorrect <- metaphor.df %>% 
+  group_by(SubjectCode) %>% 
+  summarise(NumCorrect = sum(Correct))
+
+NumIncorrect <- metaphor.df %>% 
+  group_by(SubjectCode) %>% 
+  summarise(NumIncorrect = sum(Incorrect))
+
+
+##  appending total correct and incorrect trials to data to get the dv for the model
+
+metaphor.df <- metaphor.df %>%
+  left_join(NumCorrect, by = "SubjectCode")
+
+metaphor.df <- metaphor.df %>%
+  left_join(NumIncorrect, by = "SubjectCode")
+
+## making sure that the varibles are numeric
+
+metaphor.df$NumCorrect <- as.numeric(metaphor.df$NumCorrect)
+metaphor.df$NumIncorrect <- as.numeric(metaphor.df$NumIncorrect)
+
+
+## calculating the proportion of correct responses
+
+metaphor.df$PropCorrect <- metaphor.df$NumCorrect/n_unique(metaphor.df$Item)
+
+## looking for outliers in performance using IQR method
+
+metaphor.df$SubjectOutliers <- outliers(metaphor.df$PropCorrect)
+sum(metaphor.df$SubjectOutliers) ## there are 8 participants with low accuracy
+
+## visualising outliers
+
+boxplot(metaphor.df$PropCorrect) ## 8 outliers
+boxplot(metaphor.df$SST) ## no outliers
+boxplot(metaphor.df$RPM) ## no outliers
+
+
+## checking outliers to see if we should keep or remove them
+## creating a new datset for participants with low accuracy
+
+lowaccuracy <- metaphor.df %>% 
+  filter(PropCorrect < 0.737)
+
+## visualising outliers as a table
+low <- lowaccuracy %>% 
+  select(SubjectCode, Age, Gender, PropCorrect, SST, RPM)
+pander(unique(low))
+
+## people who have low accuracy also seem to have low sst and rpm, so im guessing this has to do with the correlation between those constructs and i shouldn't trim this dataset, but i feel like it would be good to remove people who are super inaccurate as it could be that they weren't attending to the task
+
+## let's check to see if any of the items elicited out of the ordinary responses
+
+PropItemCorrect <- metaphor.df %>% 
+  group_by(Item,Condition) %>% 
+  summarise(PropItemCorrect = sum(Correct)/n_unique(metaphor.df$SubjectCode))
+
+PropItemCorrect$outliers <- outliers(PropItemCorrect$PropItemCorrect)
+sum(PropItemCorrect$outliers) ## three items have low accuracy responses
+
+PropItemCorrect.outliers <- ifelse(PropItemCorrect$outliers == T, PropItemCorrect$Item, NA)
+boxplot(PropItemCorrect$PropItemCorrect)
+hist(metaphor.df$PropCorrect)
+
+
+PropItemCorrect$ItemNo <- str_sub(PropItemCorrect$Item, -2)
+
+
+```
+
+```{r dependent.var, include= F}
+
+## uncomment to run the other models
+
+ m.base <- glmer(Correct ~ Condition + (1|Item) + (1 + Condition | SubjectCode), data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+ summary(m.base) 
+
+# m.base.all <- allFit(m.base)
+
+# m.maximal <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) +  (1|SubjectCode)+ (1 + Condition*(scale(SST) + scale(RPM)) | SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+# summary(m.maximal) ## convergence warning
+
+# m.1 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) + (1|SubjectCode)+ (0 + Condition*(scale(SST) + scale(RPM)) | SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa")) ## singularity warning
+# summary(m.1)
+
+# m.1.all <- allFit(m.1)
+
+# m.2 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) +  (0 + Condition + scale(SST) + scale(RPM) | SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+
+ # summary(m.2) ## convergence warning
+# m.2.all <- allFit(m.2)
+
+# m.base.2 <- glmer(Correct ~ Condition + (1|Item) + (0 + Condition | SubjectCode), data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+# summary(m.base.2)  
+ 
+ m.2.1 <- glmer(Correct ~ Condition*(scale(RPM) + scale(SST)) + (1|Item) +  (0 + Condition | SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+
+ summary(m.2.1)
+ 
+ # m.2.2 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) +  (0 + Condition | SubjectCode),data = filter(metaphor.df, Item != "LitCompletion03", Item != "LitCompletion12", Item != "LitCompletion16"), family=binomial, control = glmerControl(optimizer = "bobyqa")) 
+  
+# summary(m.2.2) ## results dont change
+ 
+# anova(m.base.2, m.2.1)
+ 
+# m.3 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) + (1 + Condition | SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+
+# summary(m.3) ## no warnings 
+
+# m.3.age <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + Age + (1|Item) + (1 + Condition |SubjectCode),data = metaphor.df, family=binomial, control = glmerControl(optimizer = "bobyqa"))
+# summary(m.3.age) # age is not significant
+
+# m.probit <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) + (1 + Condition |SubjectCode),data = metaphor.df, family=binomial(link="probit"), control = glmerControl(optimizer = "bobyqa"))
+# summary(m.probit) ## ran a probit model just because of curiosity; same results
+
+# anova(m.3, m.3.age)
+
+## some checks
+
+# check_collinearity(m.2.1)
+#check_distribution(m.2.1)
+#check_autocorrelation(m.2.1)
+#checks <- check_model(m.2.1)
+# m.3.all <- allFit(m.3)
+
+table.m.2.1 <- tidy(m.2.1,conf.int=TRUE,exponentiate=TRUE,effects="fixed")
+## model checks
+
+set.seed(123)
+#confints <- confint(m.2.1) ## ERROR!!!! Computing profile confidence intervals ...
+#Error in zeta(shiftpar, start = opt[seqpar1][-w]) : 
+#  profiling detected new, lower deviance
+
+
+
+
+```
+
+
+# Question 1: GLMMs
+## Methods
+The present study aimed to investigate whether comprehension accuracy is lower for literary metaphors than non-literary metaphors, whether fluid intelligence and crystallized intelligence affect metaphor comprehension, and, if yes, whether there is a difference between literary and non-literary metaphors. Data was obtained from [https://uoepsy.github.io/data/metaphor.RData]: a dataset containing information on `r n_unique(metaphor.df$SubjectCode)` adults (50 F, 25 M, 1 not specified\footnote{Given that there was no reason to hypothesize a difference in task performance based on gender, the non-binary participant was included in the sample. For the same reason, gender was not included as a covariate in the models.}) with a mean age of `r mean(metaphor.df$Age)` (SD = `r sd(metaphor.df$Age)`, range = `r range(metaphor.df$Age)`). Participants were tested on two experimental conditions---literary metaphors (e.g, *A body is a prison for the soul.*, and `r n_unique(metaphor.df$Item)/2` non-literary metaphors (e.g., *The nose is the antenna of scent.*). Each condition consisted of with `r n_unique(metaphor.df$Item)/2` items, resulting in a stimuli set of `r n_unique(metaphor.df$Item)` items. Participants were also administered two psychometric tests, Raven’s Progressive Matrices (RPM); scale = 0 to 12) and the Semantic Similarities Test (SST; scale = 19 to 37) to measure fluid intelligence, i.e., non-verbal problem solving, and crystallized intelligence, i.e., semantic knowledge, respectively. 
+
+
+
+A quantitative, cross-sectional design was implemented which entailed a within-participants/between-items factor---all participants saw all items from two conditions, but each item belonged to only one condition. 
+All analyses were carried out in R [@RCoreTeam2022]. To answer the research questions, participants' correct responses were modeled using multiple linear regression. Effects were considered statistically significant at $\alpha$ = 0.01. Given that the dependent variable was binary, a generalized linear mixed-effects model was specified with the logit link and binomial distribution using the lme4 package [@lme4]. A maximal model was first specified following recommendations by @Barr2013.  Condition (reference level: Literary), and standardized SST and RPM scores were included as the main predictor variables along with two separate interactions between condition and SST, and condition and RPM. By-subject random intercept and slope were added for condition and both interactions along with a by-item slope. The maximal model did not converge and the model simplification procedure specified in @Barr2013 was followed. First, the correlation was suppressed, followed by elimination of the interaction term in the random effects structure. The maximal model and the resulting final model were specified as follows:
+
+<center>
+**Maximal Model:** Correct ~ Condition * (SST + RPM) + (1|Item) + (1 + Condition *(SST + RPM) | Participant)
+
+
+**Final Model:** Correct ~ Condition * (SST + RPM) + (1 | Item) + (Condition || Participant)
+</center>
+
+
+The *performance* package [@Ludecke2021] was used for model checks. The test for multicollinearity revealed low correlations between predictors (VIF < 2) and test for autocorrelation revealed that the residuals were independent and not autocorrelated (p = 0.080). 
+
+
+## Results
+
+**Descriptive Statistics:**
+ A full report of the descriptive statistics can be found in Appendix A.1. The raw dataset contained `r nrow(metaphor.df)` observations with no missing or unlikely values. In terms of the psychometric measures, participants scored an average of `r mean(metaphor.df$RPM %>% round(3))` (SD = `r sd(metaphor.df$RPM %>% round(3))`) on the RPM (scale: 0-12), and `r mean(metaphor.df$SST  %>% round(3))` (SD = `r sd(metaphor.df$SST  %>% round(3))`) on the SST (scale: 19-37). Both psychometric measures were standardized for use in the statistical models. The mean proportion of correct responses of the sample was `r mean(metaphor.df$PropCorrect %>% round(3))` (SD = `r sd(metaphor.df$PropCorrect %>% round(3))`) with `r sum(metaphor.df$SubjectOutliers)/40` participants scoring lower than 0.737, the lower bound of the IQR*1.5 range. Initially, it seemed that this could be due to the participants not attending to the tasks as the STT and RPM were also very low (and even 0 in some cases). However, visual checks of SST and RPM scores showed all participants within range, i.e., no outliers. Therefore, the decision was made to keep the data of the eight low scoring participants. The same method was used to check for outliers in the stimuli set. `r sum(PropItemCorrect$outliers)` items were found to elicit a high proportion of incorrect responses. No exclusions were made at this stage, but models were run with and without these items (see Appendix A.2 for results of models without outliers). 
+
+
+**Model Results:** 
+Full regression results converted to odds ratios including 95% Confidence Intervals are shown in Table \@ref(table). Results show a significant difference in correct responses to the two types of metaphors ($\beta$ = `r table.m.2.1$estimate[2]` SE = `r table.m.2.1$std.error[2]`, p = `r table.m.2.1$p.value[2]`), suggesting that non-literary metaphors were `r table.m.2.1$estimate[2]` times more likely to be comprehended correctly than literary ones. RPM ($\beta$ = `r table.m.2.1$estimate[3]` SE = `r table.m.2.1$std.error[3]`, p = `r table.m.2.1$p.value[3]`) was found to be a significant predictor of correct responses, as was SST ($\beta$ = `r table.m.2.1$estimate[4]` SE = `r table.m.2.1$std.error[4]`, p = `r table.m.2.1$p.value[4]`). This suggests for every 1 SD increase in RPM, individuals are `r table.m.2.1$estimate[3]` times more likely to correctly comprehend metaphors. Similarly, for every 1 SD in SST, individuals are individuals are `r table.m.2.1$estimate[4]` times more likely to correctly comprehend metaphors. In other words, individuals in the 66th percentile of the SST and RPM scale are more likely to correctly comprehend metaphors, regardless of their type, `r table.m.2.1$estimate[3]` and `r table.m.2.1$estimate[4]` times, respectively. No significant interaction was found between condition and RPM ($\beta$ = `r table.m.2.1$estimate[5]` SE = `r table.m.2.1$std.error[5]`, p = `r table.m.2.1$p.value[5]`) and condition and SST ($\beta$ = `r table.m.2.1$estimate[6]` SE = `r table.m.2.1$std.error[6]`, p = `r table.m.2.1$p.value[6]`), suggesting that  RPM and SST only have an effect on overall metaphor comprehension, and do not favor one type of metaphor over another. 
+
+```{r table,  results="asis"}
+pander(tidy(m.2.1,conf.int=TRUE,exponentiate=TRUE,effects="fixed"), caption = "Regression Results (Converted to Odds Ratios)")
+
+```
+
+The results presented here indicate that overall individuals seem to comprehend non-literary metaphors better than literary ones, and that individuals with higher levels of fluid intelligence and/or crystallized intelligence are able to better comprehend metaphors. However, the effects of RPM and SST seen here are global and there is no evidence to show that they differ based on the type of metaphor.
+
+However, it is important to note that these results should be interpreted with caution as the analyses were carried out on the assumption that the participants' were first language (L1) speakers of English. It widely known in the field of Second Language Acquisition that L2 speakers have difficulty in processing and acquiring formulaic language, of which metaphors are a subset [see @Carrol2020]. If this were the case, it could explain the lower accuracy in the literary condition. Furthermore, the dataset gives no indication if the items were controlled for frequency, word length, and other factors that could potentially affect comprehension and therefore should have been included in the model to account for variance. Finally, there is no information about the order in which stimuli were presented to participants which if not individual and randomized would lead to confounds in the results. 
+
+
+```{r model.preds.figure, fig.cap="Model Prediction", fig.show="hold", out.width="30%", message=F}
+
+
+plot_model(m.2.1, type = "pred", show.values = T,  show.p = T, colors =  c("#005876", "#E7B800", "#00AFBB"))
+  
+
+
+```
+
+# Question 2: CFA/SEM
+
+
+```{r cfa, include= F}
+## uncomment to run as it throws errors when knitting: checking for non-normality, skewness and kurtosis look good
+
+
+#emotional.df %>% 
+ # describe %>% 
+  #as.data.frame() %>%
+  #rownames_to_column(., var = "variable") %>% 
+  #select(variable,mean,sd,skew,kurtosis) %>%
+  #mutate_if(is.numeric, ~round(.,2)) %>%
+  #knitr::kable()
+
+## skimming for missing data, lots of missing data
+# skim(emotional.df) ## exactly 30 missing in the mother's data and 120 for children
+missing <- sum(is.na(emotional.df)) ## 1260 total nas
+
+
+
+# specify one factor CFA model for mother's depression
+dep_model <- 'Dep =~ Dep1 + Dep2 + Dep3 + Dep4 + Dep5 +Dep6'
+# estimate the model
+dep_model.est <- cfa(dep_model, missing='FIML', estimator = "MLR",
+                     data=emotional.df)
+# inspect the output
+summary(dep_model.est, fit.measures=T, standardized=T)
+
+
+# specify one factor CFA model for mother's availability
+avail_model <- 'Avail =~ Avail1 + Avail2 + Avail3 + Avail4'
+# estimate the model
+avail_model.est <- cfa(avail_model, missing='FIML', estimator = "MLR",
+                     data=emotional.df)
+# inspect the output
+summary(avail_model.est, fit.measures=T, standardized=T)
+
+# specify two factor CFA model for child anxiety and child depression
+c.emotional_model <- '
+
+CDep =~ CDep1 + CDep2 + CDep3 + CDep4
+CAnx =~ CAnx1 + CAnx2 + CAnx3 + CAnx4
+
+CDep~~CAnx'
+# estimate the model
+c.emotional.model.est <- cfa(c.emotional_model, missing='FIML', std.lv = T, estimator = "MLR",data=emotional.df)
+# inspect the output
+summary(c.emotional.model.est, fit.measures=T, standardized=T)
+
+#checked models: RMSEA<.08, SRMR<.05, TLI>0.95 and CFI>.95 and all loadings are significant and >|.30|
+dep.mod <- modificationindices(dep_model.est)
+avail.mod <- modificationindices(avail_model.est)
+cemo.mod <- modificationindices(c.emotional.model.est)
+```
+
+```{r sem, include= F}
+
+SEM_full_model<-'
+#measurement models for mothers depressiona and availability
+Avail =~ Avail1 + Avail2 + Avail3 + Avail4
+Dep =~ Dep1 + Dep2 + Dep3 + Dep4 + Dep5 +Dep6 
+
+#measurement model for child emotional problems
+CDep =~ CDep1 + CDep2 + CDep3 + CDep4
+CAnx =~ CAnx1 + CAnx2 + CAnx3 + CAnx4
+CDep~~CAnx
+
+CEmo =~ CDep + CAnx
+
+#regressions  
+
+  CEmo ~ b*Avail + c*Dep
+  Avail ~ a*Dep
+  
+  
+ind1:= a*b  #indirect effect of depression via availability
+ind2:= a*b+c # total effect
+
+'
+
+sem.full.est <- sem(SEM_full_model, missing='FIML', se = 'bootstrap', estimator = "ML", data=emotional.df)
+
+# inspect the output
+summary(sem.full.est, fit.measures=T, standardized=T, ci = T)
+
+#checked model: RMSEA<.08, SRMR<.05, TLI>0.95 and CFI>.95 and all loadings are significant and >|.30|
+
+graph_sem(model = sem.full.est) ## sem model graph
+```
+
+## Methods
+
+To investigate whether attachment at age 3 partly mediates an association between maternal depression and later child emotional problems a structural equation model (SEM) was fitted, wherein maternal depression, maternal emotional availability, child anxiety, and child depression were latent variables defined by six items for maternal depression and four items for the rest, all measured on a five point Likert scale. Data was obtained from [https://uoepsy.github.io/data/msmr_2122_assignment.csv]: a dataset containing information on 700 mothers on ratings of depression and availability when their child was 3 yrs of age and at age 6, the children's teachers rated their emotional problems in terms of anxiety and depression. Skewness and kurtosis checks indicated that the data were normally distributed.
+
+All analyses were carried out in R [@RCoreTeam2022] using the 'lavaan' package [@lavaan]. First, the measurement models were tested by fitting a one-factor CFA model for maternal depression and maternal emotional availability each, and a two-factor CFA model including child anxiety and child depression for child emotional problems. Latent variables were scaled by fixing the loading of the first item for each construct to 1. Models were judged to fit well if CFI and TLI were >.95 and RMSEA and SRMR were <.08. Models were judged based on maximum likelihood estimations and inspections were carried out to see if there were any modification indices or expected parameter changes that could be made. However, owing to the lack of theoretical rationale, no modifications were made. Furthermore, the dataset contained `r sum(is.na(emotional.df))` missing values. However, it was not possible to deduce whether there were any patterns in the missing data from the information at hand. These data points were dealt with using the Full Information Maximum Likelihood (FIML) method. 
+
+Next an SEM was specified wherein maternal availability and depression were regressed on child emotional problems which consisted of an aggregate of child depression and child anxiety. In addition, child depression and child anxiety were allowed to covary. The indirect effect of maternal depression on child emotional problems was calculated as the product of the effect of the predictor, i.e., maternal depression on the mediator, i.e., maternal availability and the effect of the mediator on the outcome. The statistical significance of the indirect effects were evaluated using bootstrapped 95% confidence intervals with 1000 resamples. The full SEM model is illustrated in figure \@(pathdiagram). Solid lines indicate that a parameter is significant at p<.05, while dashed lines represent non-significant paths. 
+
+## Results
+
+All measurement models fit well (CFI and TLI>.95 and RMSEA and SRMR<.08). The full structural equation model also fit well (CFI=1.00, TLI=1.00, RMSEA <.001, SRMR=0.023). Standardised and unstandardised parameter estimates are provided in Table 3. All hypothesised paths were statistically significant at p <.05. The indirect effects of depression ($\beta$=0.176, 95% CI=0.121-0.239) on emotional problems were statistically significant. These significant indirect effects suggested that maternal availability  at age 3 mediates the effect of maternal depression on child anxiety and depression at age 6. Maternal depression also has a direct effect on child anxiety and depression. Results thus provide support for the theory that maternal availability in early childhood mediates the effect of depression on children's emotional problems later in childhood.
+
+```{r mediation, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+# knitr::include_graphics("sem.model.png") ## uncommented to ensure that it knits as I had to save the path diagram separately  to my pc to get it to fit in the word doc (dont ask! **eye roll**)
+```
+
+
+# Appendices
+
+## Appendix A
+
+### A1: Descriptive Statistics
+
+```{r desc.table.full,  results="asis"}
+pander(describe(metaphor.df[, -c(1,5,6,7,8,9,10, 14)],IQR=F, fast = T, omit = T, skew = F), caption = "Descriptive Statistics")
+
+```
+
+```{r figure.acc, fig.asp=.3, fig.cap="Accuracy by Condition (Error bars indicate Std. Error)", message=F, warning=FALSE}
+
+ggplot(metaphor.df, aes(Condition, Correct, col=Condition)) + 
+  stat_summary(fun.data=mean_se, geom="pointrange")+
+  theme_minimal()
+
+```
+
+
+```{r figure.item, echo = F, fig.asp=0.5, fig.cap="Proportion Correct by Item (Error bars indicate Std. Error)", message=FALSE}
+
+
+itemplot <- ggbarplot(data = PropItemCorrect, "ItemNo", "PropItemCorrect",
+   rug = TRUE,
+   add.params = list(color = "black"),
+   facet.by = "Condition",
+   color = "Condition", fill = "Condition",
+   palette = c("#D50032", "#005398"),
+   xlab = "Items",
+   ylab = "Mean Accuracy",
+   ggtheme =  theme_minimal())+ theme(legend.position = "none")
+itemplot
+```
+
+
+
+
+### A2: Model without Outliers
+
+
+```{r outlier.models, include= F}
+
+
+m.2.3 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) +  (0 + Condition | SubjectCode),data = filter(metaphor.df, PropCorrect > 0.7), family=binomial, control = glmerControl(optimizer = "bobyqa")) 
+  
+summary(m.2.3) ## subject outliers: results dont change
+
+
+m.2.2 <- glmer(Correct ~ Condition*(scale(SST) + scale(RPM)) + (1|Item) +  (0 + Condition | SubjectCode),data = filter(metaphor.df, Item != "LitCompletion03", Item != "LitCompletion12", Item != "LitCompletion16"), family=binomial, control = glmerControl(optimizer = "bobyqa")) 
+  
+summary(m.2.2) ## item outliers: results dont change
+```
+
+```{r table4,  results="asis"}
+pander(tidy(m.2.3,conf.int=TRUE,exponentiate=TRUE,effects="fixed"), caption = "Regression Results for Model without Low Accuracy Participants (Converted to Odds Ratios)")
+
+```
+
+```{r table5,  results="asis"}
+pander(tidy(m.2.2,conf.int=TRUE,exponentiate=TRUE,effects="fixed"), caption = "Regression Results for Model without Low Accuracy Items (Converted to Odds Ratios)")
+
+```
+
+
+## Appendices B
+
+```{r table6,  results="asis"}
+pander(dep.mod, caption = "Modification Indices for CFA of Maternal Depression")
+```
+
+```{r table7,  results="asis"}
+pander(avail.mod, caption = "Modification Indices for CFA of Maternal Availability")
+```
+```{r table8,  results="asis"}
+pander(cemo.mod, caption = "Modification Indices for CFA of Child Emotional Problems")
+```
+
+
+# References
+
