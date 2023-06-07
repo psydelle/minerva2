@@ -8,7 +8,7 @@ baseline,feel tickets,sentir bilhetes,11,3,feel,"9,878,659",1,tickets,"2,805,541
 baseline,read dogs,ler cães,8,2,read,"9,276,207",1,dogs,"4,646,532",1,71,6.65,-4.79,2,0,ler,2995453,cães,231347
 target,walk dogs,andar cães,9,2,walk,"3,471,332",1,dogs,"2,934,904",1,12059,8.96,4.7,5,2,andar,1312827,cães,231347
 baseline,hide songs,esconder canções,9,2,hide,"1,191,741",1,songs,"709,566",2,9,7.86,-2.1,3,0,esconder,539118,canções,186654
-target,sing songs,cantar canções ,9,2,sing,"1,043,798",1,songs,"2,828,167",1,"66,963",11.5,8.96,4,4635,cantar,535722,canções ,186654
+target,sing songs,cantar canções,9,2,sing,"1,043,798",1,songs,"2,828,167",1,"66,963",11.5,8.96,4,4635,cantar,535722,canções,186654
 baseline,bend coal,dobrar carvão,8,2,bend,"433,802",2,coal,"4,509,077",1,2,6.1,-5.48,2,0,dobrar,159670,carvão,87905
 target,burn coal,queimar carvão,8,2,burn,"1,082,445",1,coal,"626,842",2,"8,334",8.96,8.07,4,190,queimar,312801,carvão,87905
 target,build houses,construir casas,11,3,build,"8,137,945",1,houses,"5,281,006",1,"72,980",9.1,5.22,2,13162,construir,1511819,casas,604689
@@ -64,7 +64,7 @@ baseline,lift fish,levantar peixe,8,2,lift,"856,169",1,fish,"538,444",3,49,9.91,
 target,lose weight,perder peso,10,2,lose,"5,422,498",1,weight,"2,835,219",1,74300,10.17,6.73,4,11454,perder,2924065,peso,1165632
 baseline,sell weight,vender peso,10,2,sell,"4,340,136",1,weight,"10,153,008",1,39,7.37,-5.69,4,0,vender,1337375,peso,1165632
 baseline,break jokes,quebrar piadas,10,2,break,"3,741,818",1,jokes,"3,968,460",1,7,8.14,-6.6,4,0,quebrar,499115,piadas,53291
-target,crack jokes ,rachar piadas,11,2,crack,"351,064",2,jokes,"444,212",1,3225,9.53,8.82,2,0,rachar,30750,piadas,53291
+target,crack jokes,rachar piadas,11,2,crack,"351,064",2,jokes,"444,212",1,3225,9.53,8.82,2,0,rachar,30750,piadas,53291
 target,drop hints,largar pistas,9,2,drop,"1,954,153",1,hints,"393,353",3,2161,7.52,5.95,2,0,largar,161918,pistas,118266
 baseline,shift hints,deslocar pistas,10,2,shift,"848,429",2,hints,"645,134",2,7,8.13,-1.83,1,0,deslocar,230646,pistas,118266
 target,fight poverty,combater pobreza,12,4,fight,"2,257,896",1,poverty,"784,669",3,"5,538",7.59,6.1,2,0,combater,390240,pobreza,224202
