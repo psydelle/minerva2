@@ -84,9 +84,9 @@ nrow(minerva2) # 142560
 
 ## Some Data Wrangling ------------------------------------------------------------#
 
-# remove trailing whitespace 
+# remove trailing whitespace
 
-human$item <- str_trim(human$item, side = "right") 
+human$item <- str_trim(human$item, side = "right")
 minerva2$item <- str_trim(minerva2$item, side = "right")
 
 # rename vars for easier plotting
@@ -101,8 +101,8 @@ levels(human$collType) <- c("Baseline", "Congruent",
                             "Incongruent", "Productive")
 
 # reorder factor levels
-human$collType <- factor(human$collType, 
-                  levels = c("Productive", "Congruent", 
+human$collType <- factor(human$collType,
+                  levels = c("Productive", "Congruent",
                             "Incongruent", "Baseline"))
                              #relevel factors
 human$collType <- relevel(human$collType, ref = "Productive")
@@ -127,8 +127,8 @@ unique(minerva2$collType)
 names(minerva2)[6] <- "space"
 names(minerva2)[7] <- "freq"
 
-minerva2$space <- ifelse(minerva2$space == "en", "EN", 
-                        ifelse(minerva2$space == "pt", "PT", 
+minerva2$space <- ifelse(minerva2$space == "en", "EN",
+                        ifelse(minerva2$space == "pt", "PT",
                           ifelse(minerva2$space == "en_noise", "Noise (EN)", "Noise (PT)")))
 unique(minerva2$space)
 
