@@ -67,9 +67,9 @@ def get_ws(word, pos="-v"):
 def get_kwics(verb, noun):
     data = {
         "corpname": CORPUS_NAME,
-        "q": f'q[lemma="{verb}"][]?[lemma="{noun}"]',
+        "q": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "concordance_query[queryselector]": "iqueryrow",
-        "concordance_query[iquery]":f'q[lemma="{verb}"][]?[lemma="{noun}"]',
+        "concordance_query[iquery]":f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "default_attr": "lemma",
         "attr": "word",
         # "refs": "=bncdoc.alltyp",
@@ -219,7 +219,7 @@ def process_corpus(out_file):
         data.extend(process_verb(verb, corp_info))
 
     df = pd.DataFrame(data)
-    df.to_json(out_file)
+    df.to_json(out_file, orient="index")
 
 
 if __name__ == "__main__":

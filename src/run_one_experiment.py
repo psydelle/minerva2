@@ -43,6 +43,7 @@ from transformers import AutoTokenizer, AutoModel
 import matplotlib.pyplot as plt  # for plotting
 import numpy as np
 from pathlib import Path
+import json
 
 import csv as csv  # for reading in the dataset, etc.
 from joblib import Parallel, delayed  # for parallel processing
@@ -116,6 +117,7 @@ class Minerva2(object):
 
 def run_experiment(
     dataset_to_use: str,
+    kwics_file_to_use: str,
     space_lang: str,
     frequency_lang: str,
     num_participants: int,
@@ -167,6 +169,9 @@ def run_experiment(
         df = pd.read_csv("FinalDataset.csv")
         dataset = list(df["item"])  # list of items
         fcoll = list(df["collFrequency"])  # collocation frequencies
+    
+    with open(kwics_file_to_use) as f:
+        kwics = json.load(f)
 
     print("loaded the dataset and normalized the collocational frequencies")
 
@@ -183,8 +188,8 @@ def run_experiment(
             model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
             return tokenizer, model
 
-        def grab_bert(colloc, model, tokenizer, layers=[-1]):
-            return get_word_vector(colloc, tokenizer, model, layers, concat_tokens=concat_tokens)
+        def grab_bert(contexts, context_words, model, tokenizer, layers=[-1]):
+            return get_word_vector(contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens)
 
         # grab BERT embeddings for the items in the dataset
         if space_lang in ["en", "en_noise"]:
@@ -208,7 +213,14 @@ def run_experiment(
         #         vec = alignment_net.pt_to_en(vec)
 
         for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
-            item = item_en if space_lang in ["en", "en_aligned", "en_noise"] else item_pt
+            IS_ENGLISH = space_lang in ["en", "en_aligned", "en_noise"]
+            item = item_en if IS_ENGLISH else item_pt
+            colloc_kwics = kwics[item_en]["kwics" if IS_ENGLISH else "kwics_pt"] 
+            colloc_kwics_words= kwics[item_en]["kwic_words" if IS_ENGLISH else "kwic_words_pt"]
+            if not colloc_kwics:
+                colloc_kwics = [item]
+                colloc_kwics_words = [item.split(" ")]
+            # contexts = list(zip(colloc_kwics, colloc_kwics_words)) if colloc_kwics else None
 
             print(
                 f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in space_lang else model.config._name_or_path}'
@@ -217,7 +229,7 @@ def run_experiment(
                 # just get pt projection from dictionary
                 vec = torch.tensor(en_pt_dict[item]["pt"])
             else:
-                vec = grab_bert(item, model, tokenizer)
+                vec = grab_bert(colloc_kwics, colloc_kwics_words, model, tokenizer)
 
             # dictionary contains en keys regardless of what the embeddings are
             colloc2BERT[item_en] = vec
@@ -432,6 +444,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli.csv")
     parser.add_argument(
+        "-k",
+        "--kwics_file_to_use",
+        help="Kwics complement to use",
+        default="data/stimuli_kwics.json",
+    )
+    parser.add_argument(
         "-l",
         "--space_lang",
         help="Use embeddings from this language space (en, pt, en_aligned, en_noise, pt_noise)",
@@ -503,6 +521,7 @@ if __name__ == "__main__":
 
     results_df = run_experiment(
         dataset_to_use=args.dataset_to_use,
+        kwics_file_to_use=args.kwics_file_to_use,
         space_lang=args.space_lang,
         frequency_lang=args.frequency_lang,
         num_participants=args.num_participants,
