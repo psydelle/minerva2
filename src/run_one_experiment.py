@@ -105,8 +105,9 @@ class Minerva2(object):
         self, probe, tau=1.0, k=0.955, maxiter=450
     ):  # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
         echo = self.echo(probe, tau)
-        similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
-        big = torch.max(similarity)
+        big = torch.cosine_similarity(echo, probe, dim=0)
+        # similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
+        # big = torch.max(similarity)
         if big < k and tau < maxiter:
             big, tau = self.recognize(probe, tau + 1, k, maxiter)
         return big, tau
@@ -169,7 +170,7 @@ def run_experiment(
         df = pd.read_csv("FinalDataset.csv")
         dataset = list(df["item"])  # list of items
         fcoll = list(df["collFrequency"])  # collocation frequencies
-    
+
     with open(kwics_file_to_use) as f:
         kwics = json.load(f)
 
@@ -188,8 +189,10 @@ def run_experiment(
             model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
             return tokenizer, model
 
-        def grab_bert(contexts, context_words, model, tokenizer, layers=[-1]):
-            return get_word_vector(contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens)
+        def grab_bert(contexts, context_words, model, tokenizer, layers=[-4, -3, -2, -1]):
+            return get_word_vector(
+                contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens
+            )
 
         # grab BERT embeddings for the items in the dataset
         if space_lang in ["en", "en_noise"]:
@@ -215,8 +218,8 @@ def run_experiment(
         for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
             IS_ENGLISH = space_lang in ["en", "en_aligned", "en_noise"]
             item = item_en if IS_ENGLISH else item_pt
-            colloc_kwics = kwics[item_en]["kwics" if IS_ENGLISH else "kwics_pt"] 
-            colloc_kwics_words= kwics[item_en]["kwic_words" if IS_ENGLISH else "kwic_words_pt"]
+            colloc_kwics = kwics[item_en]["kwics" if IS_ENGLISH else "kwics_pt"]
+            colloc_kwics_words = kwics[item_en]["kwic_words" if IS_ENGLISH else "kwic_words_pt"]
             if not colloc_kwics:
                 colloc_kwics = [item]
                 colloc_kwics_words = [item.split(" ")]

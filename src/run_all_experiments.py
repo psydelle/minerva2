@@ -9,6 +9,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli.csv")
     parser.add_argument(
+        "-k",
+        "--kwics_file_to_use",
+        help="Kwics complement to dataset to use",
+        default="data/stimuli_kwics.json",
+    )
+    parser.add_argument(
         "-n",
         "--num_participants",
         help="How many participants to model?",
@@ -17,12 +23,14 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--en_pt_trans_pickle",
-        help="Path to pickle file containing pt translations of en embeddings (required for aligned space_lang)",
+        help="Path to pickle file containing pt translations of "
+        "en embeddings (required for aligned space_lang)",
         default=None,
     )
     parser.add_argument(
         "--freq_fraction_pt",
-        help="Use this fraction of PT in frequency mixing (only applicable for mixed? aligned? space_lang, default 0.6)",
+        help="Use this fraction of PT in frequency mixing "
+        "(only applicable for mixed? aligned? space_lang, default 0.6)",
         default=0.6,
         type=float,
     )
@@ -61,9 +69,12 @@ if __name__ == "__main__":
     results_dfs = []
     for space_lang in ["en", "pt", "en_noise", "pt_noise"]:
         for frequency_lang in ["en", "pt", "mix", "equal"]:
-            print(f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}")
+            print(
+                f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}"
+            )
             results_df = run_experiment(
                 dataset_to_use=args.dataset_to_use,
+                kwics_file_to_use=args.kwics_file_to_use,
                 space_lang=space_lang,
                 frequency_lang=frequency_lang,
                 num_participants=args.num_participants,
