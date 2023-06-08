@@ -64,7 +64,7 @@ def get_word_vector(
     """
     # mask_sent = "I'm going to " + sent + " today."
 
-    encoded = tokenizer(contexts, padding=True, return_tensors="pt")
+    encoded = tokenizer(contexts, padding=True, return_tensors="pt").to(model.device)
     # if encoded["input_ids"].size(1) != 4:
     #     print(
     #         f"Expected output to have 4 tokens, got {encoded['input_ids'].size(1)}."

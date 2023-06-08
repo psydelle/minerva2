@@ -128,6 +128,7 @@ def run_experiment(
     minerva_max_iter=450,
     num_workers=1,
     concat_tokens=False,
+    avg_last_n_layers=4,
     label=None,
 ):
     ## read in the dataset
@@ -180,16 +181,24 @@ def run_experiment(
     embed_dim = 768 if not concat_tokens else 768 * 2
 
     colloc2BERT = dict()
-    bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(dataset_to_use).name[:-4]}-lang_{space_lang}{"-concat" if concat_tokens else ""}{"-" + label if label else ""}.dat'
+    _s = "en" if space_lang in ["en", "en_noise"] else "en_aligned" if space_lang == "en_aligned" else "pt"
+    bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(dataset_to_use).name[:-4]}-lang_{_s}-last_{avg_last_n_layers}{"-concat" if concat_tokens else ""}{"-" + label if label else ""}.dat'
     os.makedirs(os.path.dirname(bert_embeddings_cache_filename), exist_ok=True)
     if not os.path.isfile(bert_embeddings_cache_filename):
         # set up the model and tokenizer for BERT embeddings
         def get_bert(mod_name="distilbert-base-uncased"):
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.has_mps:
+                device = "mps"
+            else:
+                device = "cpu"
             tokenizer = AutoTokenizer.from_pretrained(mod_name)
-            model = AutoModel.from_pretrained(mod_name, output_hidden_states=True)
+            model = AutoModel.from_pretrained(mod_name, output_hidden_states=True).to(device)
             return tokenizer, model
 
-        def grab_bert(contexts, context_words, model, tokenizer, layers=[-4, -3, -2, -1]):
+        def grab_bert(contexts, context_words, model, tokenizer):
+            layers = list(range(-avg_last_n_layers, 0))
             return get_word_vector(
                 contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens
             )
@@ -235,7 +244,7 @@ def run_experiment(
                 vec = grab_bert(colloc_kwics, colloc_kwics_words, model, tokenizer)
 
             # dictionary contains en keys regardless of what the embeddings are
-            colloc2BERT[item_en] = vec
+            colloc2BERT[item_en] = vec.to("cpu")
 
         # write the embeddings dictionary to a file to be re-used next time we run the code
         #
@@ -244,6 +253,8 @@ def run_experiment(
         colloc2BERTfile.close()
         print("Dictionary written  to file\n")
 
+        if space_lang != "en_aligned":
+            del tokenizer, model
     else:
         # get the previously calculated embeddings from the file in which they were stored
         #
@@ -434,6 +445,7 @@ def run_experiment(
     results_df["minerva_k"] = minerva_k
     results_df["minerva_max_iter"] = minerva_max_iter
     results_df["freq_fraction_pt"] = freq_fraction_pt if frequency_lang == "mix" else -1
+    results_df["avg_last_n_layers"] = avg_last_n_layers
 
     return results_df
 
@@ -510,6 +522,14 @@ if __name__ == "__main__":
         default=True,
     )
     parser.add_argument(
+        "--avg_n",
+        "--avg_last_n_layers",
+        dest="avg_last_n_layers",
+        help="Average last n layers of BERT",
+        default=4,
+        type=int,
+    )
+    parser.add_argument(
         "--label",
         help="Arbitrary label to append to all files created",
         default=None,
@@ -534,11 +554,12 @@ if __name__ == "__main__":
         minerva_max_iter=args.minerva_max_iter,
         num_workers=args.num_workers,
         concat_tokens=args.concat_tokens,
+        avg_last_n_layers=args.avg_last_n_layers,
         label=args.label,
     )
 
     if args.append_to_file:
         results_df.to_csv(args.append_to_file, mode="a", header=False, index=False)
     else:
-        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}-last_{args.avg_last_n_layers}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
         results_df.to_csv(out_file, index=False)

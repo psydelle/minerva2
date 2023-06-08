@@ -60,6 +60,14 @@ if __name__ == "__main__":
         default=True,
     )
     parser.add_argument(
+        "--avg_n",
+        "--avg_last_n_layers",
+        dest="avg_last_n_layers",
+        help="Average last n layers of BERT",
+        default=4,
+        type=int,
+    )
+    parser.add_argument(
         "--label",
         help="Arbitrary label to append to all files created",
         default=None,
@@ -84,11 +92,12 @@ if __name__ == "__main__":
                 minerva_max_iter=args.minerva_max_iter,
                 num_workers=args.num_workers,
                 concat_tokens=args.concat_tokens,
+                avg_last_n_layers=args.avg_last_n_layers,
                 label=args.label,
             )
 
             results_dfs.append(results_df)
 
     results_df = pd.concat(results_dfs)
-    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-{f'-mix{args.freq_fraction_pt}'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-{f'-mix{args.freq_fraction_pt}'}-last_{args.avg_last_n_layers}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
     results_df.to_csv(out_file, index=False)
