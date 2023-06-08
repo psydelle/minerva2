@@ -560,6 +560,8 @@ if __name__ == "__main__":
 
     if args.append_to_file:
         results_df.to_csv(args.append_to_file, mode="a", header=False, index=False)
+        print(f"Appended results to {args.append_to_file}")
     else:
         out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}-last_{args.avg_last_n_layers}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
         results_df.to_csv(out_file, index=False)
+        print(f"Wrote results to {out_file}")

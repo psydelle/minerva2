@@ -101,3 +101,4 @@ if __name__ == "__main__":
     results_df = pd.concat(results_dfs)
     out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-{f'-mix{args.freq_fraction_pt}'}-last_{args.avg_last_n_layers}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
     results_df.to_csv(out_file, index=False)
+    print("Wrote results to", out_file)
