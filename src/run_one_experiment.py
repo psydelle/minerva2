@@ -282,7 +282,7 @@ def run_experiment(
     if "noise" in space_lang:
         # generate random vectors for the items in the dataset
         # noise is generated from the mean and std of each embedding dimension
-        colloc_bert_embeddings = torch.stack(list(colloc2BERT.values()))
+        colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc2BERT.values()])
 
         noise_means = colloc_bert_embeddings.mean(dim=0)
         noise_stds = colloc_bert_embeddings.std(dim=0)
