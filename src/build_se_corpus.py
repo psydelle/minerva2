@@ -69,7 +69,7 @@ def get_kwics(verb, noun):
         "corpname": CORPUS_NAME,
         "q": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "concordance_query[queryselector]": "iqueryrow",
-        "concordance_query[iquery]":f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
+        "concordance_query[iquery]": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "default_attr": "lemma",
         "attr": "word",
         # "refs": "=bncdoc.alltyp",
@@ -106,7 +106,7 @@ def get_kwics(verb, noun):
         right_end = right.index(_ss) if _ss in right else -1
         assert _ss not in kwic
 
-        left_clean = left[left_start + 1:]
+        left_clean = left[left_start + 1 :]
         right_clean = right[:right_end]
         clean_line = " ".join(left_clean + kwic + right_clean)
         clean_lines.append(clean_line)
@@ -210,15 +210,23 @@ def process_verb(verb, corp_info):
 
 
 @click.command()
-@click.option("-o", "--out-file", required=True)
-def process_corpus(out_file):
+@click.option("-o", "--out_file", required=True)
+@click.option(
+    "--do_append/--no_append", default=False, help="Append to out_file instead of overwriting it."
+)
+def process_corpus(out_file, do_append):
     corp_info = get_corp_info(CORPUS_NAME)
 
     data = []
     for verb in verb_list:
         data.extend(process_verb(verb, corp_info))
+        break
 
     df = pd.DataFrame(data)
+    if do_append:
+        prev = pd.read_json(out_file, orient="index")
+        df = pd.concat([prev, df], axis="index", ignore_index=True)
+
     df.to_json(out_file, orient="index")
 
 
