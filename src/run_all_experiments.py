@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
-        default=0.99,
+        default=0.93,
         type=float,
     )
     parser.add_argument(

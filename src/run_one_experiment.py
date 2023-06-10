@@ -105,9 +105,9 @@ class Minerva2(object):
         self, probe, tau=1.0, k=0.955, maxiter=450
     ):  # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
         echo = self.echo(probe, tau)
-        big = torch.cosine_similarity(echo, probe, dim=0)
-        # similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
-        # big = torch.max(similarity)
+        # big = torch.cosine_similarity(echo, probe, dim=0)
+        similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
+        big = torch.max(similarity)
         if big < k and tau < maxiter:
             big, tau = self.recognize(probe, tau + 1, k, maxiter)
         return big, tau
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
-        default=0.99,
+        default=0.93,
         type=float,
     )
     parser.add_argument(
