@@ -39,10 +39,6 @@ base_url = "https://api.sketchengine.eu/bonito/run.cgi"
 # )
 
 
-## read in the dataset
-df = pd.read_csv("data/stimuli.csv")
-verb_list = df["node"].unique()
-
 CORPUS_NAME = "preloaded/ententen21_tt31"
 N_QUERY_NOUNS = 100
 
@@ -148,8 +144,14 @@ def process_verb(verb, corp_info):
                     f'{index}{selected_indices.get(index, "")}: {(verb + " " + coll_data["word"]).ljust(25, " ")} - Score: {coll_data["score"]}, {coll_data["count"]}'
                 )
 
-            print("Type c <N>, f <N>, i <N>, d for done, n for next page, p for prev page: ")
+            print("Type c <N>, f <N>, i <N>, d to move to next verb, n for next page, p for prev page, exit to exit: ")
             inp = input()
+            if inp == "exit":
+                # return
+                if data:
+                    print("Unwritten data! Write d to save.")
+                    continue
+                return None
             if inp == "d":
                 # return
                 return data
@@ -210,21 +212,38 @@ def process_verb(verb, corp_info):
 
 
 @click.command()
-@click.option("-o", "--out_file", required=True)
+@click.option("-o", "--out_file", required=True, help="Path to which to write JSON. WILL OVERWRITE EXISTING.")
 @click.option(
     "--do_append/--no_append", default=False, help="Append to out_file instead of overwriting it."
 )
 def process_corpus(out_file, do_append):
+    if not out_file.endswith(".json"):
+        raise ValueError("Out file must be a JSON!")
+    
     corp_info = get_corp_info(CORPUS_NAME)
+
+    ## read in the dataset
+    df = pd.read_csv("data/stimuli.csv")
+    verb_list = df["node"].unique()
+
+    if do_append:
+        prev = pd.read_json(out_file, orient="index")
+        existing_verbs = prev["node"].unique()
+        verb_list = set(verb_list) - set(existing_verbs)
+        
+    verb_list = sorted(verb_list)
 
     data = []
     for verb in verb_list:
-        data.extend(process_verb(verb, corp_info))
-        break
+        p = process_verb(verb, corp_info)
+        if p is not None:
+            data.extend(p)
+        else:
+            break
 
     df = pd.DataFrame(data)
+
     if do_append:
-        prev = pd.read_json(out_file, orient="index")
         df = pd.concat([prev, df], axis="index", ignore_index=True)
 
     df.to_json(out_file, orient="index")
