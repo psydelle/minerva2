@@ -12,7 +12,7 @@ def get_word_idx(sent: str, word: str):
 
 
 def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=False):
-    """Push input IDs through model. Stack and sum `layers` (last four by default).
+    """Push input IDs through model. Stack and average `layers` (last four by default).
     Select only those subword token outputs that belong to our word of interest
     and average them."""
     with torch.no_grad():
@@ -21,7 +21,7 @@ def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=Fal
     # Get all hidden states
     states = output.hidden_states
     # Stack and mean over layers
-    output = torch.stack([states[i] for i in layers]).mean(0) # n_contexts x n_tokens x embed_dim
+    output = torch.stack([states[i] for i in layers]).mean(0)  # n_contexts x n_tokens x embed_dim
     # return output[0]
 
     # # Only select the tokens that constitute the requested word
@@ -50,8 +50,8 @@ def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=Fal
 
 
 def get_word_vector(
-    contexts: List[str], 
-    context_words:List[List[str]],
+    contexts: List[str],
+    context_words: List[List[str]],
     tokenizer,
     model,
     layers,
@@ -59,12 +59,12 @@ def get_word_vector(
 ):
     """Get a word vector by first tokenizing the input sentence, getting all token idxs
     that make up the word of interest, and then `get_hidden_states`.
-    
+
     If contexts are provided, average token representations across all contexts.
     """
     # mask_sent = "I'm going to " + sent + " today."
-                    
-    encoded = tokenizer(contexts, padding=True, return_tensors="pt")
+
+    encoded = tokenizer(contexts, padding=True, return_tensors="pt").to(model.device)
     # if encoded["input_ids"].size(1) != 4:
     #     print(
     #         f"Expected output to have 4 tokens, got {encoded['input_ids'].size(1)}."
@@ -73,9 +73,8 @@ def get_word_vector(
 
     def __get_word_from_word_id(batch_idx, cxt, word_id):
         word_span = encoded.word_to_chars(batch_idx, word_id)
-        word = cxt[word_span[0]:word_span[1]]
+        word = cxt[word_span[0] : word_span[1]]
         return word
-
 
     # get all token idxs that belong to the word of interest
     encoded_word2toks = []
@@ -88,17 +87,20 @@ def get_word_vector(
                     tokens = [start]
                 else:
                     tokens = list(range(start, end))
-                if word_id not in word2tokens: # or word2tokens[-1] != tokens:
-                    word2tokens[word_id]=tokens
+                if word_id not in word2tokens:  # or word2tokens[-1] != tokens:
+                    word2tokens[word_id] = tokens
 
         # find tokens corresponding to context_words in word2tokens
         word1_toks, word2_toks = None, None
         for word1_id in word2tokens:
             word1 = __get_word_from_word_id(i, cxt, word1_id)
             for offset in range(1, 8):
-                word2_id = word1_id+offset
+                word2_id = word1_id + offset
                 # attempt to match second word
-                if word1 == cxt_words[0] and __get_word_from_word_id(i, cxt, word2_id) == cxt_words[1]:
+                if (
+                    word1 == cxt_words[0]
+                    and __get_word_from_word_id(i, cxt, word2_id) == cxt_words[1]
+                ):
                     word1_toks = word2tokens[word1_id]
                     word2_toks = word2tokens[word2_id]
                     break
@@ -109,8 +111,8 @@ def get_word_vector(
             encoded_word2toks.append((word1_toks, word2_toks))
         else:
             raise ValueError("Could not find tokens for", cxt_words, "in", cxt)
-        
-        # encoded_word2toks.append(word2tokens)        
+
+        # encoded_word2toks.append(word2tokens)
 
     # word_0_idx = get_word_idx(mask_sent, string.split(" ")[0])
     # word_1_idx = get_word_idx(mask_sent, string.split(" ")[1])
