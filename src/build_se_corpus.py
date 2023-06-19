@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 import requests as r
 import pandas as pd
 import math
@@ -204,50 +206,62 @@ def process_verb(verb, corp_info):
                 N=int(corp_info["sizes"]["wordcount"]),
             )
             kwics, kwic_words = get_kwics(verb, coll_data["word"])
-            item_data["kwics"] = kwics
-            item_data["kwic_words"] = kwic_words
+
+            k = dict()
+            k["kwics"] = kwics
+            k["kwic_words"] = kwic_words
 
             selected_indices[index] = command
-            data.append(item_data)
+            data.append((item_data["item"], item_data, k))
 
 
 @click.command()
-@click.option("-o", "--out_file", required=True, help="Path to which to write JSON. WILL OVERWRITE EXISTING.")
+@click.option("-o", "--out_file", required=True, help="Path to which to write CSV. WILL OVERWRITE EXISTING.")
 @click.option(
     "--do_append/--no_append", default=False, help="Append to out_file instead of overwriting it."
 )
 def process_corpus(out_file, do_append):
-    if not out_file.endswith(".json"):
-        raise ValueError("Out file must be a JSON!")
+    if not out_file.endswith(".csv"):
+        raise ValueError("Out file must be a CSV!")
     
     corp_info = get_corp_info(CORPUS_NAME)
 
     ## read in the dataset
-    df = pd.read_csv("data/stimuli.csv")
-    verb_list = df["node"].unique()
+    stimuli_df = pd.read_csv("data/stimuli.csv")
+    verb_list = stimuli_df["node"].unique()
+
+    kwics_json_path = "".join(out_file.split(".")[:-1]) + "_kwics.json"
 
     if do_append:
-        prev = pd.read_json(out_file, orient="index")
-        existing_verbs = prev["node"].unique()
+        prev_data_df = pd.read_csv(out_file)
+        with open(kwics_json_path) as f:
+            prev_data_kwics = json.load(f)
+        existing_verbs = prev_data_df["node"].unique()
         verb_list = set(verb_list) - set(existing_verbs)
-        
+
     verb_list = sorted(verb_list)
 
     data = []
+    kwics = {}
     for verb in verb_list:
         p = process_verb(verb, corp_info)
         if p is not None:
-            data.extend(p)
+            for item, item_data, item_kwics in p:
+                data.append(item_data)
+                kwics[item] = item_kwics
         else:
             break
 
-    df = pd.DataFrame(data)
+    data_df = pd.DataFrame(data)
 
     if do_append:
-        df = pd.concat([prev, df], axis="index", ignore_index=True)
+        data_df = pd.concat([prev_data_df, data_df], axis="index", ignore_index=True)
+        kwics = {**prev_data_kwics, **kwics}
 
-    df.to_json(out_file, orient="index")
+    data_df.to_csv(out_file, index=False)
 
+    with open(kwics_json_path, "w") as f:
+        json.dump(kwics, f)
 
 if __name__ == "__main__":
     process_corpus()
