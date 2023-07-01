@@ -19,8 +19,8 @@
 
 ## ACKNOWLEDGEMENTS  ----------------------------------------------------------
 
-# 
-# 
+#
+#
 
 #-----------------------------------------------------------------------------#
 
@@ -28,7 +28,7 @@
 
 # set current working directory to the directory of this file
 
-setwd(dirname(sys.frame(1)$ofile)) 
+setwd(dirname(sys.frame(1)$ofile))
 
 getwd()
 #install.packages(c("tidyverse",
@@ -54,11 +54,13 @@ library(pander) # for publication-ready tables
 library(xtable) # for latex tables
 library(patchwork) # for combining plots
 library(car) # for anovas and other stats
-library(afex) # for mixed effects models 
+library(afex) # for mixed effects models
 library(sjPlot) # for plotting mixed effects models
 library(lme4) # for mixed effects models
 library(boot) # for bootstrapping
 library(emmeans) # for post-hoc tests
+library(BMS) # for Bayes factors and Bayesian model averaging
+
 
 # set seed for reproducibility
 
@@ -80,8 +82,6 @@ minerva2 <- read.csv("results\\combo_results-stimuli-99p--mix0.6-concat-m2k_0.93
                     header = TRUE) # minerva2 results
 nrow(minerva2) # 142560
 
-
-
 ## Some Data Wrangling ------------------------------------------------------------#
 
 # remove trailing whitespace
@@ -90,8 +90,7 @@ human$item <- str_trim(human$item, side = "right")
 minerva2$item <- str_trim(minerva2$item, side = "right")
 
 # rename vars for easier plotting
-
-human$l1 <- ifelse(human$l1 == "EN", "English", "Portuguese")
+human$l1 <- ifelse(human$l1 == "EN", "L1", "L2")
 unique(human$l1)
 
 #rename factor levels
@@ -116,69 +115,38 @@ head(stimuli_df)
 minerva2$collType <- stimuli_df$collType[match(minerva2$item,
                                                  stimuli_df$item)]
 
-# dropping a factor level for collType by combining congruent and incongruent
-minerva2$condition <- ifelse(minerva2$collType == "Congruent", "Collocation",
-                            ifelse(minerva2$collType == "Incongruent", "Collocation",
-                                   minerva2$collType))
-unique(minerva2$condition)
-unique(minerva2$collType)
-# rename some cols for simplicity
 
+# rename some cols for simplicity
+colnames(minerva2)
 names(minerva2)[6] <- "space"
 names(minerva2)[7] <- "freq"
 
+unique(minerva2$space)
+colnames(minerva2)
 minerva2$space <- ifelse(minerva2$space == "en", "EN",
                         ifelse(minerva2$space == "pt", "PT",
                           ifelse(minerva2$space == "en_noise", "Noise (EN)", "Noise (PT)")))
 unique(minerva2$space)
 
-minerva2$freq <- ifelse(minerva2$freq == "en", "EN", 
-                        ifelse(minerva2$freq == "pt", "PT", 
-                          ifelse(minerva2$freq == "equal", "Noise", "Mixed 0.6")))
-unique(minerva2$freq)
 
-unique(minerva2$minerva_k)
-skim(minerva2)
+
+minerva2$freq <- ifelse(minerva2$freq == "en", "EN", 
+                        ifelse(minerva2$freq == "pt", "PT",
+                          ifelse(minerva2$freq == "equal", "Equal", "Mixed 0.6")))
+
+minerva2$condition <- paste(minerva2$space, minerva2$freq, sep = " - ")
+unique(minerva2$condition)
 ## Descriptive Statistics ------------------------------------------------------#
 
-results_plot <- ggbarplot(minerva2,
-                     x = "condition", y = "rt",
-                     facet.by = c("freq", "space"),
-                     #title = "Simulating mean RTs by Collocation Type",
-                     add = "mean_sd",
-                     fill = "condition",
-                     xlab = "Experimental Condition",
-                     ylab = "Tau",
-                     font.legend = c(18, "bold"),
-                     legend.title = "Item Type",
-                     ggtheme = theme_bw(),
-                     #label = TRUE,
-                     lab.vjust = -4,
-                     font.title = c(22, "bold"),
-                     font.x = c("30", "bold"),
-                     font.y = c("30", "bold"),
-                     palette = c("#005876", "#D50032",
-                                  "#EBA70E", "#81B920",
-                                  "#00AFBB", "#4A7875",
-                                  "#E7B800"),
-                     panel.labs.background = list(color = "black",
-                                                  fill = "white"),
-                          panel.labs.font = list(size = 25,
-                                                  face = "bold")) +
-                    font("xy.text", size = 15) +
-                    theme(legend.position = "bottom") + rremove("x.text")
-results_plot
-
-results_plot <- ggbarplot(minerva2 %>% 
-                    filter(collType != "Incongruent"),
+minerva2_desc_bar <- ggbarplot(minerva2,
                      x = "collType", y = "rt",
                      facet.by = c("freq", "space"),
-                     #title = "Simulating mean RTs by Collocation Type",
-                     add = "mean_ci",
+                     #title = "MINERVA2 Simulations: Tau by Collocation Type",
+                     add = "mean_se",
                      fill = "collType",
                      xlab = "Experimental Condition",
                      ylab = "Tau",
-                     font.legend = c(18, "bold"),
+                     font.legend = c(22, "bold"),
                      legend.title = "Item Type",
                      ggtheme = theme_bw(),
                      #label = TRUE,
@@ -186,26 +154,61 @@ results_plot <- ggbarplot(minerva2 %>%
                      font.title = c(22, "bold"),
                      font.x = c("30", "bold"),
                      font.y = c("30", "bold"),
-                     palette = c("#005876", "#D50032",
-                                  "#EBA70E", "#81B920",
-                                  "#00AFBB", "#4A7875",
-                                  "#E7B800"),
+                     palette = c("#F10C66",
+                                 "#38AECC",
+                                 "#054A91",
+                                 "#FFCC00"),
                      panel.labs.background = list(color = "black",
                                                   fill = "white"),
                           panel.labs.font = list(size = 25,
                                                   face = "bold")) +
-                    font("xy.text", size = 15) +
+                    font("xy.text", size = 18) +
                     theme(legend.position = "bottom") + rremove("x.text")
-results_plot
+minerva2_desc_bar
 
-ggsave("min_violin.png", results_plot, width = 20, height = 20, dpi = 450)
+ggsave("minerva2_desc_bar_max.png", minerva2_desc_bar, width = 20, height = 20, dpi = 450)
 
 
-human_results_plot <- ggbarplot(human %>% filter(collType != "Incongruent"),
+
+
+minerva2_desc_bar2 <- ggbarplot(minerva2 %>% 
+                    filter(freq != "Equal" & space != "Noise (EN)" & space != "Noise (PT)"),
+                     x = "collType", y = "rt",
+                     facet.by = c("freq", "space"),
+                     title = "MINERVA2",
+                     add = "mean_se",
+                     fill = "collType",
+                     xlab = "Experimental Condition",
+                     ylab = "Tau",
+                     font.legend = c(22, "bold"),
+                     legend.title = "Item Type",
+                     ggtheme = theme_bw(),
+                     #label = TRUE,
+                     lab.vjust = -4,
+                     font.title = c(35, "bold"),
+                     font.x = c("30", "bold"),
+                     font.y = c("30", "bold"),
+                     palette = c("#F10C66",
+                                 "#38AECC",
+                                 "#054A91",
+                                 "#FFCC00"),
+                                 ncol = 4,
+                     panel.labs.background = list(color = "black",
+                                                fill = "white"),
+                          panel.labs.font = list(size = 35,
+                                                face = "bold")) +
+                    font("xy.text", size = 22) +
+                    theme(legend.position = "bottom") + rremove("x.text")
+
+minerva2_desc_bar2
+
+ggsave("minerva2_exp_results.png", minerva2_desc_bar2, width = 20, height = 20, dpi = 450)
+
+human_results_plot <- ggbarplot(human %>% filter(l1 == "L1"),
                      x = "collType", y = "RT",
                      facet.by = "l1",
-                     #title = "Mean RTs by Collocation Type",
-                     add = "mean_ci",
+                     title = "Human",
+                     add = "mean_se",
                      fill = "collType",
                      xlab = "Experimental Condition",
                      ylab = "Reaction Time (ms)",
@@ -213,27 +216,39 @@ human_results_plot <- ggbarplot(human %>% filter(collType != "Incongruent"),
                      label = FALSE,
                      lab.vjust = -4,
                      #ylim(500, 1600),
-                     font.title = c(30, "bold"),
+                     font.title = c(35, "bold"),
                      font.x = c("30", "bold"),
                      font.y = c("30", "bold"),
-                     font.legend = c(18, "bold"),
+                     font.legend = c(22, "bold"),
                      legend.title = "Item Type:",
-                     palette = c("#005876", "#D50032",
-                                  "#EBA70E", "#81B920",
-                                  "#00AFBB", "#4A7875",
-                                  "#E7B800"),
+                     palette = c("#F10C66",
+                                 "#38AECC",
+                                 "#054A91",
+                                 "#FFCC00"),
                      panel.labs.background = list(color = "black",
                                                   fill = "white"),
                           panel.labs.font = list(size = 35,
                                                   face = "bold")) +
                     font("xy.text", size = 22) +
-                    theme(legend.position = "bottom") + rremove("x.text") 
+                    theme(legend.position = "bottom") + rremove("x.text")
 
 human_results_plot
 
+#ggsave("human_desc_bar.png", human_results_plot, width = 20, height = 20, dpi = 450)
+ggsave("null_desc_bar.png", minerva2_desc_bar2, width = 20, height = 20, dpi = 450)
+
+arrange <- ggarrange(human_results_plot, minerva2_desc_bar2,
+                      ncol = 2, nrow = 1, label.x = "Experiment", 
+                      common.legend = TRUE, legend = "bottom",
+                      font.label = c(55, "bold"))
+arrange
+ggsave("l1control_desc_bar.png", arrange, width = 20, height = 20, dpi = 450)
+
+
+
 m1_human_l1 <- lmer(RT ~ collType + l1 +
-              (1 | ID) + (1 | item), 
-              data = human %>% 
+              (1 | ID) + (1 | item),
+              data = human %>%
               filter(acc == 1))
 
 summary(m1_human_l1)
@@ -241,12 +256,10 @@ summary(m1_human_l1)
 emm.m1_l1 <- emmeans(m1_human_l1, ~collType, type = "response")
 
 m1_human_l1 <- lmer(RT ~ collType + l1 +
-              (1 | ID) + (1 | item), 
+              (1 | ID) + (1 | item),
               data = human %>% filter(collType != "Incongruent"))
 
 summary(m1_human_l1)
-
-
 
 
 
