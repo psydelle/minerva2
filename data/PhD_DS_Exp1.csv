@@ -1,0 +1,121 @@
+﻿set,coll,coll_freq,coll_score,prod,prod_freq,prod_score,idiom,idiom_freq,idiom_score,comments
+,break silence,53167,8.5,bone,66577,8.8,leg,677376,8.7,
+,pay visit,96351,8.5,debt,84234,8.3,price,278026,9.7,
+,cross mind,46036,8.5,street,45592,9,line,189753,9.8,
+,catch attention,133801,9.3,fish,111494,9.3,eye,163400,9.7,avoided catch fire because literal meaning
+,close case,27515,6.5,window,46496,8.3,gap,134164,10,
+,raise concern,244826,9.8,hand,134259,8.6,eyebrow,126474,9.3,
+,enter competition,35716,7.4,house,54063,7.6,market,122635,8.9,
+,push agenda,28530,8.4,people,29182,5.5,button,90119,9.6,
+,build trust,79084,7.6,structure,85865,7.6,wall,77579,7.5,
+,carry risk,44571,7.5,load,45814,8.2,weight,72738,8.6,
+,run country,42155,6.7,marathon,42041,7.2,race,65736,7.6,
+,hold breath,113164,8.2,hand,168395,8.4,key,59256,7.2,check hold hands for idiomatic meaning
+,sow confusion,3504,7.7,crop,5292,7.9,seed,57012,10.9,idiom requires a PP
+,unlock potential,27122,8.5,car,5734,5.3,door,46638,9,
+,throw party,58685,8.5,rock,33109,8,money,43659,7.3,
+,cover expense,58741,7.9,face,55326,7.7,ground,43449,7.4,
+,cut tax,40766,8,hair,46643,8.3,corner,41219,8.4,cut cost 100014  8.7
+,bend rule,14612,7.1,leg,7787,7.5,knee,27701,10.5,
+,spin tale,8646,8.3,yarn,10358,9.6,wheel,25453,9.5,
+,face fact,24588,6.6,window,8743,5.4,obstacle,25112,7.3,variance
+,flood inbox,1404,6.9,area,17316,6.3,market,24774,9,
+,capture scene,10061,6.3,soldiers,10187,6.7,heart,23582,7.5,
+,lift ban,32844,9.4,hand,29716,7.4,finger,20457,8.2,
+,navigate challenge,12323,6.7,water,12267,6.5,world,18410,6.9,
+,spill secret,2935,6.6,beer,2737,6.9,bean,18162,10.4,
+,cast doubt,56812,9.6,line,7730,5.3,net,17940,8.7,
+,fight cancer,23036,8,enemy,23869,8,man,17711,5.9,
+,fan fear,846,7.4,face,681,3.5,flame,17553,10.9,low freq
+,abandon plan,19302,6.7,building,15935,7.2,ship,16629,7.9,
+,share joy,17250,6.2,food,17706,5.8,bed,15565,6,
+,beat odds,12754,7.7,egg,12025,7.3,drum,15198,8,
+,shift blame,11839,8.4,position,13395,6.5,burden,14511,8.2,
+,drop hint,15554,7.8,anchor,9980,7.3,line,13304,5.9,
+,pick fight,25712,8.4,winner,25931,8.3,brain,13281,7.5,
+,stir controversy,6065,8.6,mixture,9045,8.7,pot,13006,9.4,
+,float idea,14114,5.9,log,871,5.6,boat,12267,8.4,variance
+,blow mind,58033,9.4,air,19266,8.4,smoke,11725,8.6,
+,strike pose,13132,8.6,target,9230,6.9,gold,11563,7.8,
+,twist word,6271,5.2,ankle,5585,9.1,arm,11204,7.6,
+,lock eye,26037,7.5,gate,11288,8.2,horn,10804,8.4,
+,soften tone,1969,6.3,skin,6229,7.3,blow,10244,9.4,
+,forge signature,6865,8,wheel,6475,7.4,link,9616,6.3,
+,fuel passion,4510,7,car,4448,5,fire,9418,7.3,
+,ignite debate,2905,6.6,flame,2986,7.9,fire,9306,7.5,
+,silence gene,3129,7.1,voice,12799,7.6,critic,9062,9.6,coll could be very niche
+,shatter myth,2665,7.4,glass,5273,7.3,record,9028,6.3,
+,hurt business,11397,5.9,child,11455,5.5,eye,8773,5.9,idiom may be sketch
+,drain account,2706,5,oil,6015,6.9,swamp,8256,9.6,
+,skip breakfast,8437,8.2,rope,4595,7.7,line,7567,5.5,skip town is a possible option for idiom
+,smell fear,2087,5.8,perfume,2919,8.2,rose,7425,9.4,
+,spread terror,3270,6,butter,3074,5.8,seed,7216,6.7,
+,chase dream,15269,8.2,ball,7917,6.8,tail,7173,8.5,variance
+,crack smile,7983,8.2,egg,7478,7.7,whip,6516,9.1,crack joke 17189 9.3
+,weave story,15961,6.1,basket,7588,8.5,web,6389,7.9,
+,stimulate economy,28332,8.8,cell,11511,7.4,brain,6316,7.3,
+,kick habit,10490,8.1,door,9371,6.7,bucket,6257,8.2,
+,scrape living,1286,5.9,skin,1675,5.4,bottom,5734,8.7,
+,taste success,4956,5.9,flavor,4555,7.2,blood,5479,7,
+,spark panic,1203,6.1,flame,1100,5.7,fire,5462,6.5,better colls for spark (spark joy)
+,pierce darkness,1797,7.6,skin,5027,7,veil,4674,9.5,
+,level charge,9233,7.3,ground,2181,5.3,field,4459,5.9,
+,battle disease,4809,6.5,enemy,3316,6.4,demon,4244,8,
+,cultivate talent,3854,6.5,soil,3389,6.9,garden,4189,6.9,idiomatic meaning might be lesser known
+,sweeten deal,8402,6.5,milk,2791,7.5,pot,3461,8,
+,erase history,5499,5.8,board,3931,6.3,trace,2860,7.5,
+,strain relation,5144,7.5,muscle,3831,7.5,ear,2727,7.2,
+,dangle prospect,447,4.8,leg,1386,5.4,carrot,2648,9.5,
+,crash wedding,1110,6.2,spaceship,1083,7.2,computer,2527,5.8,
+,unleash fury,3432,8.5,dog,2534,5.4,hell,2366,6.8,no lit meaning for idiom
+,inflate ego,2090,8,balloon,4946,9.4,bubble,2333,7.8,inflate cost 3858 4.8
+,grasp meaning,6358,7.1,hand,7746,5.7,nettle,2108,7.9,
+,spew hate,2021,8.8,lava,1017,8.7,venom,2067,9.4,
+,pad resume,1157,6.7,cushion,1230,7.5,pocket,2019,7.3,
+,slap tariff,2277,8,face,5516,6.4,label,2004,6.3,label is literal
+,distort truth,5871,6.5,image,4773,5.1,picture,1905,4.1,unsure
+,stifle dissent,2974,9.1,yawn,2819,9.5,voice,1886,4.9,
+,diffuse situation,4620,5.9,light,7147,6.3,tension,1814,6.6,variance
+,defy gravity,10447,9.7,law,12283,6.7,reason,1792,3.7,imagination 1482 6.4 (as idiom)
+,unearth talent,1111,5.1,fossils,748,7.1,treasure,1465,7.1,
+,slash spending,4420,8.1,throat,2869,8.1,bill,1279,4.4,idiom is a bit of a stretch
+,polish skill,4607,5.3,surface,3211,6.5,image,1148,3.1,
+,freeze asset,9599,7.7,water,5735,5.4,heart,936,3.9,variance
+,smear reputation,1085,5.4,blood,2322,6.4,opponent,933,5.6,opponent is literal
+,muzzle press,709,6,dog,673,3.7,ox,602,9,
+,dent confidence,1228,5.4,can,925,6.8,reputation,413,4,
+,cement legacy,,,,,,,,,couldn’t find productive use
+,cloud judgement,,,,,,,,,"stats marred by cloud used in the IT sense (e.g., cloud computing)"
+,combat poverty,,,,,,,,,couldn’t find productive use
+,damage reputation,15306,8.2,building,13504,7,,,,
+,dash hope,13808,8.5,,,,,,,
+,dissolve marriage,6378,7.6,sugar,7278,8.3,,,,
+,drive change,58610,7.4,vehicle,66778,8.3,,,,
+,earn reputation,44358,8.7,income,75184,9.3,,,,
+,embrace diversity,,,,,,,,,
+,fatten wallet,652,7.3,pig,953,7.2,,,,
+,harbor resentment,2450,8.8,terrorist,2297,7.7,,,,
+,harness wind,1451,6.1,horse,1463,5.3,,,,
+,hurl abuse,3968,7.7,stone,4148,7.3,,,,
+,kill time,30145,5.1,officer,28098,7.2,,,,
+,land contract,5574,6.4,plane,6422,7.6,,,,
+,launch business,23341,6.4,satellite,23789,7.7,,,,
+,launder money,13271,6,clothes,1033,5.6,,,,
+,leak image,7240,5.7,oil,7320,7.1,,,,
+,lob insult,467,6.4,rocket,494,6.1,,,,
+,nurse grudge,1318,7.3,infant,1225,6.6,,,,
+,pitch idea,24213,6.6,ball,3512,5.6,,,,
+,plant kiss,6897,7.8,seedling,7912,8.1,,,,
+,raid fridge,1072,7.5,headquarters,1162,6.7,,,,
+,read mind,34479,6.7,document,34757,6.7,,,,
+,rewrite history,22091,7.8,article,7859,5.7,,,,
+,scrap plan,8708,5.7,car,4251,5.1,,,,
+,shape narrative,4057,6.3,structure,4320,5.3,,,,
+,spout nonsense,4067,9.6,water,1091,3.1,,,,
+,steer conversation,4677,6.5,boat,4211,6.7,,,,
+,swallow pride,8341,8.8,pill,8107,9.1,,,,
+,sway voter,2692,7.4,hip,2465,8.2,,,,
+,swing election,2890,6,axe,3085,8.1,,,,
+,tackle crisis,14277,8.1,player,1690,3.5,,,,
+,dodge question,,,attack,7905,7,bullet,16588,10.3,
+,pull data,,,hair,,,string,,,
