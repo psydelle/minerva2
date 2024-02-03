@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 import requests as r
 import pandas as pd
 import math
@@ -39,10 +41,6 @@ base_url = "https://api.sketchengine.eu/bonito/run.cgi"
 # )
 
 
-## read in the dataset
-df = pd.read_csv("data/stimuli.csv")
-verb_list = df["node"].unique()
-
 CORPUS_NAME = "preloaded/ententen21_tt31"
 N_QUERY_NOUNS = 100
 
@@ -69,7 +67,7 @@ def get_kwics(verb, noun):
         "corpname": CORPUS_NAME,
         "q": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "concordance_query[queryselector]": "iqueryrow",
-        "concordance_query[iquery]":f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
+        "concordance_query[iquery]": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
         "default_attr": "lemma",
         "attr": "word",
         # "refs": "=bncdoc.alltyp",
@@ -106,7 +104,7 @@ def get_kwics(verb, noun):
         right_end = right.index(_ss) if _ss in right else -1
         assert _ss not in kwic
 
-        left_clean = left[left_start + 1:]
+        left_clean = left[left_start + 1 :]
         right_clean = right[:right_end]
         clean_line = " ".join(left_clean + kwic + right_clean)
         clean_lines.append(clean_line)
@@ -148,8 +146,14 @@ def process_verb(verb, corp_info):
                     f'{index}{selected_indices.get(index, "")}: {(verb + " " + coll_data["word"]).ljust(25, " ")} - Score: {coll_data["score"]}, {coll_data["count"]}'
                 )
 
-            print("Type c <N>, f <N>, i <N>, d for done, n for next page, p for prev page: ")
+            print("Type c <N>, f <N>, i <N>, d to move to next verb, n for next page, p for prev page, exit to exit: ")
             inp = input()
+            if inp == "exit":
+                # return
+                if data:
+                    print("Unwritten data! Write d to save.")
+                    continue
+                return None
             if inp == "d":
                 # return
                 return data
@@ -202,25 +206,62 @@ def process_verb(verb, corp_info):
                 N=int(corp_info["sizes"]["wordcount"]),
             )
             kwics, kwic_words = get_kwics(verb, coll_data["word"])
-            item_data["kwics"] = kwics
-            item_data["kwic_words"] = kwic_words
+
+            k = dict()
+            k["kwics"] = kwics
+            k["kwic_words"] = kwic_words
 
             selected_indices[index] = command
-            data.append(item_data)
+            data.append((item_data["item"], item_data, k))
 
 
 @click.command()
-@click.option("-o", "--out-file", required=True)
-def process_corpus(out_file):
+@click.option("-o", "--out_file", required=True, help="Path to which to write CSV. WILL OVERWRITE EXISTING.")
+@click.option(
+    "--do_append/--no_append", default=False, help="Append to out_file instead of overwriting it."
+)
+def process_corpus(out_file, do_append):
+    if not out_file.endswith(".csv"):
+        raise ValueError("Out file must be a CSV!")
+    
     corp_info = get_corp_info(CORPUS_NAME)
 
+    ## read in the dataset
+    stimuli_df = pd.read_csv("data/stimuli.csv")
+    verb_list = stimuli_df["node"].unique()
+
+    kwics_json_path = "".join(out_file.split(".")[:-1]) + "_kwics.json"
+
+    if do_append:
+        prev_data_df = pd.read_csv(out_file)
+        with open(kwics_json_path) as f:
+            prev_data_kwics = json.load(f)
+        existing_verbs = prev_data_df["node"].unique()
+        verb_list = set(verb_list) - set(existing_verbs)
+
+    verb_list = sorted(verb_list)
+
     data = []
+    kwics = {}
     for verb in verb_list:
-        data.extend(process_verb(verb, corp_info))
+        p = process_verb(verb, corp_info)
+        if p is not None:
+            for item, item_data, item_kwics in p:
+                data.append(item_data)
+                kwics[item] = item_kwics
+        else:
+            break
 
-    df = pd.DataFrame(data)
-    df.to_json(out_file, orient="index")
+    data_df = pd.DataFrame(data)
 
+    if do_append:
+        data_df = pd.concat([prev_data_df, data_df], axis="index", ignore_index=True)
+        kwics = {**prev_data_kwics, **kwics}
+
+    data_df.to_csv(out_file, index=False)
+
+    with open(kwics_json_path, "w") as f:
+        json.dump(kwics, f)
 
 if __name__ == "__main__":
     process_corpus()
