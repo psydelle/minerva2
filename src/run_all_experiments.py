@@ -29,10 +29,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--freq_fraction_pt",
-        help="Use this fraction of PT in frequency mixing "
-        "(only applicable for mixed? aligned? space_lang, default 0.6)",
-        default=0.6,
-        type=float,
+        help="Mix fractions of pt frequency data in mixed space_lang, separated by commas,"
+        "default '0.25,0.5,0.75'",
+        default="0.25,0.5,0.75",
+        type=str,
     )
     parser.add_argument(
         "--minerva_k",
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         "--avg_last_n_layers",
         dest="avg_last_n_layers",
         help="Average last n layers of BERT",
-        default=4,
+        default=1,
         type=int,
     )
     parser.add_argument(
@@ -74,9 +74,17 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    mix_freq_fracs = [float(f) for f in args.freq_fraction_pt.split(",")]
+
     results_dfs = []
     for space_lang in ["en", "pt", "en_noise", "pt_noise"]:
-        for frequency_lang in ["en", "pt", "mix", "equal"]:
+        for frequency_lang in ["en", "pt", *mix_freq_fracs, "equal"]:
+            if frequency_lang in mix_freq_fracs:
+                frequency_lang = "mix"
+                freq_fraction_pt = frequency_lang
+            else:
+                freq_fraction_pt = None
+
             print(
                 f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}"
             )
@@ -87,7 +95,7 @@ if __name__ == "__main__":
                 frequency_lang=frequency_lang,
                 num_participants=args.num_participants,
                 en_pt_trans_pickle=args.en_pt_trans_pickle,
-                freq_fraction_pt=args.freq_fraction_pt,
+                freq_fraction_pt=freq_fraction_pt,
                 minerva_k=args.minerva_k,
                 minerva_max_iter=args.minerva_max_iter,
                 num_workers=args.num_workers,

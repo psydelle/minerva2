@@ -28,6 +28,7 @@
 # Ivan Vegner
 # Sean Memery
 # Giulio Zhou
+# Mattia Opper
 
 # -----------------------------------------------------------------------------#
 
@@ -64,8 +65,9 @@ np.random.seed(0)
 
 # os.chdir(Path(__file__).parent.absolute())
 
-EN_BERT = "distilbert-base-cased"
-PT_BERT = "adalbertojunior/distilbert-portuguese-cased"
+# EN_BERT = "distilbert-base-cased"
+# PT_BERT = "adalbertojunior/distilbert-portuguese-cased"
+EN_BERT = PT_BERT = "sentence-transformers/distiluse-base-multilingual-cased-v1"
 NORM_ALPHA = 0.9
 
 
@@ -105,9 +107,9 @@ class Minerva2(object):
         self, probe, tau=1.0, k=0.955, maxiter=450
     ):  # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
         echo = self.echo(probe, tau)
-        # big = torch.cosine_similarity(echo, probe, dim=0)
-        similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
-        big = torch.max(similarity)
+        big = torch.cosine_similarity(echo, probe, dim=0)
+        # similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
+        # big = torch.max(similarity)
         if big < k and tau < maxiter:
             big, tau = self.recognize(probe, tau + 1, k, maxiter)
         return big, tau
@@ -130,6 +132,7 @@ def run_experiment(
     concat_tokens=False,
     avg_last_n_layers=4,
     label=None,
+    # do_log_freq=True
 ):
     ## read in the dataset
     if Path(dataset_to_use).name == "stimuli.csv":
@@ -149,6 +152,10 @@ def run_experiment(
         )
         # no replacement because it's actually numbers
         _coll_freq_pt = df[["fitempt", "fnodept", "fcollpt"]].astype(float)
+
+        # if do_log_freq:
+        #     _coll_freq_en = (_coll_freq_en+2).applymap(np.log10)
+        #     _coll_freq_pt = (_coll_freq_pt+2).applymap(np.log10)
 
         norm_freq_en = norm_jm(
             _coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"]
@@ -189,7 +196,7 @@ def run_experiment(
     os.makedirs(os.path.dirname(bert_embeddings_cache_filename), exist_ok=True)
     if not os.path.isfile(bert_embeddings_cache_filename):
         # set up the model and tokenizer for BERT embeddings
-        def get_bert(mod_name="distilbert-base-uncased"):
+        def get_bert(mod_name):
             if torch.cuda.is_available():
                 device = "cuda"
             elif torch.has_mps:
@@ -201,6 +208,7 @@ def run_experiment(
             return tokenizer, model
 
         def grab_bert(contexts, context_words, model, tokenizer):
+            # layers = [0] +  list(range(-avg_last_n_layers, 0))
             layers = list(range(-avg_last_n_layers, 0))
             return get_word_vector(
                 contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens
@@ -300,6 +308,9 @@ def run_experiment(
         colloc_bert_embeddings - colloc_bert_embeddings.mean()
     ) / colloc_bert_embeddings.std()
 
+    # norm by row, (as suggested in SBERT?)
+    # colloc_bert_embeddings = colloc_bert_embeddings / colloc_bert_embeddings.norm(dim=1).unsqueeze(1)
+
     ## Now we got to add some noise to the memory matrix (parameter L)
     L = 0.6  # 0.6 is what the meta paper says
     # noise between 0 and 1
@@ -362,6 +373,9 @@ def run_experiment(
         noisy_mem = torch.where(
             noise_mask < L, matrix + noise_gaussian, matrix
         )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
+        # noisy_mem = torch.where(
+        #     noise_mask < L, 0.0, matrix
+        # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
         noisy_mem = noisy_mem.to(device)
 
         minz = Minerva2(Mat=noisy_mem)  # initialize the Minerva2 model with the noisy memory matrix
@@ -427,8 +441,8 @@ def run_experiment(
         n_gpus = torch.cuda.device_count()
         worker_devices = [torch.device(i) for i in range(n_gpus)]
         worker_devices = worker_devices * int(np.ceil(NUM_WORKERS / n_gpus))
-    # elif torch.has_mps:
-    #     worker_devices = ["mps"] * NUM_WORKERS
+    elif torch.has_mps:
+        worker_devices = ["mps"] * NUM_WORKERS
     else:
         worker_devices = ["cpu"] * NUM_WORKERS
     # device = "cuda" if torch.cuda.is_available() else "cpu"
