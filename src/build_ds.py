@@ -33,22 +33,31 @@ print(df.head())
 idiom = df[[ 'idiom', 'idiom_freq', 'idiom_score']]
 #create a new column called type and add the str idiom to it
 idiom['type'] = 'idiom'
+# rename columns
+idiom = idiom.rename(columns={'idiom': 'item', 'idiom_freq': 'fitem', 'idiom_score': 'score'})
 
 # create new df using columns from old df with prod in colname
 prod = df[['prod', 'prod_freq', 'prod_score']]
 #create a new column called type and add the str idiom to it
 prod['type'] = 'prod'
-
+# rename columns
+prod = prod.rename(columns={'prod': 'item', 'prod_freq': 'fitem', 'prod_score': 'score'})
 
 # create new df using columns from old df with item in colname
 item = df[['item', 'fitem', 'logDice']]
 #create a new column called type and add the str idiom to it
 item['type'] = 'collocation'
+# rename columns
+item = item.rename(columns={'logDice': 'score'})
 
 # join dfs to item by adding them to the bottom with colnames from item
 
 
+new_df = pd.concat([idiom, prod, item])
 
+# split the item into two columns, but keep it in the df
+new_df['verb'] = new_df['item'].str.split().str[0]
+new_df['noun'] = new_df['item'].str.split().str[1]
 
-
-new_df = item.concat(prod).concat(idiom) 
+# write new df to csv
+new_df.to_csv('data/stimuli_idioms.csv', index=False)

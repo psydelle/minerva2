@@ -78,7 +78,7 @@ nrow(stimuli) # 90
 human <- read.csv("data\\ALSLA-results.csv", header = TRUE) # human experiment results (Souza, 2021)
 nrow(human) # 28802
 
-minerva2 <- read.csv("results\\combo_results-stimuli-99p--mix0.6-concat-m2k_0.93-m2mi_300.csv", 
+minerva2 <- read.csv("results\\combo_results-stimuli-99p--mix0.6-last_1-kwics-concat-m2k_0.93-m2mi_300-revert.csv", 
                     header = TRUE) # minerva2 results
 nrow(minerva2) # 142560
 
@@ -136,6 +136,7 @@ minerva2$freq <- ifelse(minerva2$freq == "en", "EN",
 
 minerva2$condition <- paste(minerva2$space, minerva2$freq, sep = " - ")
 unique(minerva2$condition)
+
 ## Descriptive Statistics ------------------------------------------------------#
 
 minerva2_desc_bar <- ggbarplot(minerva2,
