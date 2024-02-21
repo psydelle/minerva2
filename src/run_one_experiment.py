@@ -67,16 +67,9 @@ np.random.seed(0)
 
 # EN_BERT = "distilbert-base-cased"
 # PT_BERT = "adalbertojunior/distilbert-portuguese-cased"
-EN_BERT = PT_BERT = "sentence-transformers/distiluse-base-multilingual-cased-v1"
+EN_BERT = "sentence-transformers/all-MiniLM-L6-v2"
 NORM_ALPHA = 0.9
 
-
-def norm_jm(fitem, fnode, fcoll):
-    fitem_div = fitem / fitem.sum()
-    fnode_div = fnode / fnode.sum()
-    fcoll_div = fcoll / fcoll.sum()
-    norm = NORM_ALPHA * fitem_div + (1 - NORM_ALPHA) * fnode_div * fcoll_div
-    return norm
 
 
 class Minerva2(object):
@@ -210,7 +203,6 @@ def run_experiment(
     print("loaded the dataset and normalized the collocational frequencies")
 
     M = 10000
-    embed_dim = 768 if not do_concat_tokens else 768 * 2
 
     embeddings_cache_filename = f'data/processed/{embedding_model}_{Path(dataset_to_use).name[:-4]}-last_{avg_last_n_layers}-{"kwics" if kwics else "nokwics"}{"-concat" if do_concat_tokens else ""}{"-" + label if label else ""}.dat'
     os.makedirs(os.path.dirname(embeddings_cache_filename), exist_ok=True)
@@ -228,6 +220,8 @@ def run_experiment(
         with open(embeddings_cache_filename, "rb") as colloc2BERTfile:
             colloc_embeddings = pickle.load(colloc2BERTfile)
         print(f"Read from file {embeddings_cache_filename}")
+
+    embed_dim = 384 if not do_concat_tokens else 384 * 2
 
     if do_noise_embeddings:
         # generate random vectors for the items in the dataset

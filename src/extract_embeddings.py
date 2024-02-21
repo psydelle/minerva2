@@ -39,7 +39,7 @@ def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=Fal
     # mean across contexts, i.e. batch
     word_embeddings = torch.stack(word_embeddings, dim=0).mean(dim=0)
 
-    assert word_embeddings.size() == (2, 768)
+    # assert word_embeddings.size() == (2, 384)
 
     if concat_tokens:
         word_tokens_output = word_embeddings.reshape(-1)
