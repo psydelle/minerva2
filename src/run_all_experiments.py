@@ -74,7 +74,9 @@ if __name__ == "__main__":
         print(
             f"Running experiment with model {embedding_model}" +
             (' with noise' if do_noise_embeddings else '') +
-            (' with equal frequency' if do_equal_frequency else '')
+            (' with equal frequency' if do_equal_frequency else '') +
+            f" and forget probability {forget_prob}" +
+            f" and minerva k {minerva_k}"
         )
         results_df = run_experiment(
             dataset_to_use=args.dataset_to_use,
