@@ -34,7 +34,7 @@
 
 ## Set-Up ---------------------------------------------------------------------
 import logging
-from typing import Optional
+from typing import Optional, Union
 import torch  # for tensors
 import random  # for random number generation
 import pandas as pd  # for dataframe manipulation
@@ -93,7 +93,9 @@ class Minerva2(object):
             assert F is not None, "You need to specify the number of features"
 
     def activate(self, probe, tau=1.0):
-        similarity = torch.cosine_similarity(probe, self.Mat, dim=1)  # had the wrong axis
+        similarity = torch.cosine_similarity(
+            probe, self.Mat, dim=1
+        )  # had the wrong axis
         activation = torch.abs(similarity**tau) * torch.sign(
             similarity
         )  # make sure we preserve the signs
@@ -115,71 +117,91 @@ class Minerva2(object):
         return big, tau
 
 
+def get_embeddings(
+    dataset: pd.DataFrame,
+    kwics: dict,
+    model_name: str,
+    do_concat_tokens: bool,
+    avg_last_n_layers: int,
+):
+    colloc2BERT = dict()
+
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps else "cpu"
+
+    if model_name == "sbert":
+        # set up the model and tokenizer for SBERT embeddings
+        tokenizer = AutoTokenizer.from_pretrained(EN_BERT)
+        model = AutoModel.from_pretrained(EN_BERT, output_hidden_states=True).to(device)
+
+        def grab_bert(contexts, context_words, model, tokenizer):
+            # layers = [0] +  list(range(-avg_last_n_layers, 0))
+            layers = list(range(-avg_last_n_layers, 0))
+            return get_word_vector(
+                contexts,
+                context_words,
+                tokenizer,
+                model,
+                layers,
+                concat_tokens=do_concat_tokens,
+            )
+
+        for item in dataset["item"]:
+            if kwics and kwics[item]["kwics"]:
+                colloc_kwics = kwics[item]["kwics"]
+                colloc_kwics_words = kwics[item]["kwic_words"]
+                n_kwics = len(colloc_kwics)
+            else:
+                raise ValueError(f"No kwics provided for {item}")
+                colloc_kwics = [item]
+                colloc_kwics_words = [item.split(" ")]
+                n_kwics = 0
+
+            print(f'Retrieving vector for "{item}" from {model.config._name_or_path}')
+            vec = grab_bert(colloc_kwics, colloc_kwics_words, model, tokenizer)
+
+            # dictionary contains en keys regardless of what the embeddings are
+            colloc2BERT[item] = {"vec": vec.to("cpu"), "n_kwics": n_kwics}
+
+    return colloc2BERT
+
+
 ##-----------------------------------------------------------------------------##
 
 
 def run_experiment(
     dataset_to_use: str,
     kwics_file_to_use: str,
-    space_lang: str,
-    frequency_lang: str,
     num_participants: int,
-    en_pt_trans_pickle: Optional[str] = None,
-    freq_fraction_pt: Optional[float] = None,
+    embedding_model="sbert",
+    do_noise_embeddings=False,
+    do_equal_frequency=False,
     minerva_k=0.955,
     minerva_max_iter=450,
     num_workers=1,
-    concat_tokens=False,
+    do_concat_tokens=False,
     avg_last_n_layers=4,
     label=None,
     # do_log_freq=True
 ):
     ## read in the dataset
-    if Path(dataset_to_use).name == "stimuli.csv":
-        df = pd.read_csv(dataset_to_use)  # same dataset as MSc project
-        # fcoll = list(df['fcoll'].str.replace(r'\D', '')) # collocation frequencies
-        dataset = df[["item", "item_pt"]]
-        # if space_lang in ["en", "en_aligned"]:
-        #     dataset = list(df['item']) # list of items
-        # elif space_lang == "pt":
-        #     dataset = list(df['item_pt']) # list of items
-        # else:
-        #     raise NotImplementedError(f"{space_lang} space lang not implemented yet")
+    df = pd.read_csv(dataset_to_use)
+    dataset = df[["item"]]
 
-        # convert comma-sep number strings to numbers
-        _coll_freq_en = df[["fitem", "fnode", "fcoll"]].applymap(
-            lambda x: float(str(x).replace(",", ""))
-        )
-        # no replacement because it's actually numbers
-        _coll_freq_pt = df[["fitempt", "fnodept", "fcollpt"]].astype(float)
+    # # convert comma-sep number strings to numbers
+    # _coll_freq_en = df[["fitem", "fnode", "fcoll"]].applymap(
+    #     lambda x: float(str(x).replace(",", ""))
+    # )
 
-        # if do_log_freq:
-        #     _coll_freq_en = (_coll_freq_en+2).applymap(np.log10)
-        #     _coll_freq_pt = (_coll_freq_pt+2).applymap(np.log10)
+    # if do_log_freq:
+    #     _coll_freq_en = (_coll_freq_en+2).applymap(np.log10)
+    #     _coll_freq_pt = (_coll_freq_pt+2).applymap(np.log10)
 
-        norm_freq_en = norm_jm(
-            _coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"]
-        )
-        norm_freq_pt = norm_jm(
-            _coll_freq_pt["fitempt"], _coll_freq_pt["fnodept"], _coll_freq_pt["fcollpt"]
-        )
+    # norm_freq_en = norm_jm(
+    #     _coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"]
+    # )
+    norm_freq_en = df["fitem"]
 
-        # if frequency_lang == "en":
-        #     fcoll = norm_freq_en
-        # elif frequency_lang == "pt":
-        #     fcoll = norm_freq_pt
-        # elif frequency_lang == "mix":
-        #     raise NotImplementedError("Mix not implemented yet hehe")
-
-    elif dataset_to_use == "FinalDataset.csv":
-        raise NotImplementedError(
-            "FinalDataset.csv doesn't yet support any of the parameters you're probably trying to use"
-        )
-        df = pd.read_csv("FinalDataset.csv")
-        dataset = list(df["item"])  # list of items
-        fcoll = list(df["collFrequency"])  # collocation frequencies
-
-    if kwics_file_to_use=="none":
+    if kwics_file_to_use == "none":
         kwics = None
     else:
         with open(kwics_file_to_use) as f:
@@ -188,118 +210,42 @@ def run_experiment(
     print("loaded the dataset and normalized the collocational frequencies")
 
     M = 10000
-    embed_dim = 768 if not concat_tokens else 768 * 2
+    embed_dim = 768 if not do_concat_tokens else 768 * 2
 
-    colloc2BERT = dict()
-    _s = "en" if space_lang in ["en", "en_noise"] else "en_aligned" if space_lang == "en_aligned" else "pt"
-    bert_embeddings_cache_filename = f'data/processed/colloc2BERT-{Path(dataset_to_use).name[:-4]}-lang_{_s}-last_{avg_last_n_layers}-{"kwics" if kwics else "nokwics"}{"-concat" if concat_tokens else ""}{"-" + label if label else ""}.dat'
-    os.makedirs(os.path.dirname(bert_embeddings_cache_filename), exist_ok=True)
-    if not os.path.isfile(bert_embeddings_cache_filename):
-        # set up the model and tokenizer for BERT embeddings
-        def get_bert(mod_name):
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif torch.has_mps:
-                device = "mps"
-            else:
-                device = "cpu"
-            tokenizer = AutoTokenizer.from_pretrained(mod_name)
-            model = AutoModel.from_pretrained(mod_name, output_hidden_states=True).to(device)
-            return tokenizer, model
-
-        def grab_bert(contexts, context_words, model, tokenizer):
-            # layers = [0] +  list(range(-avg_last_n_layers, 0))
-            layers = list(range(-avg_last_n_layers, 0))
-            return get_word_vector(
-                contexts, context_words, tokenizer, model, layers, concat_tokens=concat_tokens
-            )
-
-        # grab BERT embeddings for the items in the dataset
-        if space_lang in ["en", "en_noise"]:
-            tokenizer, model = get_bert(EN_BERT)
-        elif space_lang in ["pt", "pt_noise"]:
-            tokenizer, model = get_bert(PT_BERT)
-        elif space_lang == "en_aligned":
-            # en_aligned is using en embeddings aligned to pt space, i.e., replace en embeddings with en in pt space
-            with open(en_pt_trans_pickle, "rb") as f:
-                en_pt_dict = pickle.load(f)
-        else:
-            raise Exception("Weird space lang")
-
-        # if "aligned" in space_lang:
-        #     alignment_net = CollocNet(embed_dim=768 if not concat_tokens else 768*2)
-
-        # for item in dataset:
-        #     if space_lang == "en_aligned":
-        #         vec = alignment_net.en_to_pt(vec)
-        #     elif space_lang == "pt_aligned":
-        #         vec = alignment_net.pt_to_en(vec)
-
-        for item_en, item_pt in zip(dataset["item"], dataset["item_pt"]):
-            IS_ENGLISH = space_lang in ["en", "en_aligned", "en_noise"]
-            item = item_en if IS_ENGLISH else item_pt
-            if kwics and kwics[item_en]["kwics" if IS_ENGLISH else "kwics_pt"]:
-                colloc_kwics = kwics[item_en]["kwics" if IS_ENGLISH else "kwics_pt"]
-                colloc_kwics_words = kwics[item_en]["kwic_words" if IS_ENGLISH else "kwic_words_pt"]
-                n_kwics = len(colloc_kwics)
-            else:
-                colloc_kwics = [item]
-                colloc_kwics_words = [item.split(" ")]
-                n_kwics = 0
-            # contexts = list(zip(colloc_kwics, colloc_kwics_words)) if colloc_kwics else None
-
-            print(
-                f'Retrieving vector for "{item}" from {"dictionary" if "aligned" in space_lang else model.config._name_or_path}'
-            )
-            if space_lang == "en_aligned":
-                # just get pt projection from dictionary
-                vec = torch.tensor(en_pt_dict[item]["pt"])
-            else:
-                vec = grab_bert(colloc_kwics, colloc_kwics_words, model, tokenizer)
-
-            # dictionary contains en keys regardless of what the embeddings are
-            colloc2BERT[item_en] = {"vec": vec.to("cpu"), "n_kwics": n_kwics}
-
+    embeddings_cache_filename = f'data/processed/{embedding_model}_{Path(dataset_to_use).name[:-4]}-last_{avg_last_n_layers}-{"kwics" if kwics else "nokwics"}{"-concat" if do_concat_tokens else ""}{"-" + label if label else ""}.dat'
+    os.makedirs(os.path.dirname(embeddings_cache_filename), exist_ok=True)
+    if not os.path.isfile(embeddings_cache_filename):
+        colloc_embeddings = get_embeddings(
+            dataset, kwics, embedding_model, do_concat_tokens, avg_last_n_layers
+        )
         # write the embeddings dictionary to a file to be re-used next time we run the code
-        colloc2BERTfile = open(bert_embeddings_cache_filename, "wb")
-        pickle.dump(colloc2BERT, colloc2BERTfile)
-        colloc2BERTfile.close()
+        with open(embeddings_cache_filename, "wb") as colloc2BERTfile:
+            pickle.dump(colloc_embeddings, colloc2BERTfile)
         print("Dictionary written to file\n")
 
-        if space_lang != "en_aligned":
-            del tokenizer, model
     else:
         # get the previously calculated embeddings from the file in which they were stored
-        #
-        colloc2BERTfile = open(bert_embeddings_cache_filename, "rb")
-        colloc2BERT = pickle.load(colloc2BERTfile)
-        colloc2BERTfile.close()
-        print(f"Read from file {bert_embeddings_cache_filename}")
+        with open(embeddings_cache_filename, "rb") as colloc2BERTfile:
+            colloc_embeddings = pickle.load(colloc2BERTfile)
+        print(f"Read from file {embeddings_cache_filename}")
 
-    # if en_pt_trans_pickle:
-    #     with open(en_pt_trans_pickle, "rb") as f:
-    #         en_pt_dict = pickle.load(f)
-    #     for k in colloc2BERT:
-    #         # print(np.array(colloc2BERT[k])[:10], np.array(en_pt_dict[k]["en"])[:10])
-    #         # assert all(np.array(colloc2BERT[k]) == np.array(en_pt_dict[k]["en"]))
-
-    #         # TODO: en embeddings here don't match en embeddings there bc uncased vs. cased models
-    #         # TODO: rerun all experiments with cased bert if time
-    #         colloc2BERT[k] = torch.tensor(en_pt_dict[k]["pt"])
-
-    if "noise" in space_lang:
+    if do_noise_embeddings:
         # generate random vectors for the items in the dataset
         # noise is generated from the mean and std of each embedding dimension
-        colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc2BERT.values()])
+        colloc_bert_embeddings = torch.stack(
+            [c["vec"] for c in colloc_embeddings.values()]
+        )
 
         noise_means = colloc_bert_embeddings.mean(dim=0)
         noise_stds = colloc_bert_embeddings.std(dim=0)
 
-        for item in colloc2BERT:
-            colloc2BERT[item]["vec"].data = torch.randn(embed_dim) * noise_stds + noise_means
+        for item in colloc_embeddings:
+            colloc_embeddings[item]["vec"].data = (
+                torch.randn(embed_dim) * noise_stds + noise_means
+            )
 
     # stack the embeddings into a tensor
-    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc2BERT.values()])
+    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc_embeddings.values()])
 
     # normalize the embeddings to standard normal
     # TODO: why does normalizing per dimension produce drastically different results?
@@ -331,32 +277,16 @@ def run_experiment(
         # sample from the collocations to make a M x 768 matrix
         sample_k = M - len(colloc_bert_embeddings)
 
-        if frequency_lang == "equal":
+        if do_equal_frequency:
             sampled_collocs = torch.stack(
                 random_generator.choices(colloc_bert_embeddings, k=sample_k)
             )
-        elif frequency_lang == "en":
+        else:
             sampled_collocs = torch.stack(
-                random_generator.choices(colloc_bert_embeddings, k=sample_k, weights=norm_freq_en)
-            )
-        elif frequency_lang == "pt":
-            sampled_collocs = torch.stack(
-                random_generator.choices(colloc_bert_embeddings, k=sample_k, weights=norm_freq_pt)
-            )
-        elif frequency_lang == "mix":
-            sample_k_pt = round(sample_k * freq_fraction_pt)
-            sample_k_en = sample_k - sample_k_pt
-            _sampled_collocs_pt = torch.stack(
                 random_generator.choices(
-                    colloc_bert_embeddings, k=sample_k_pt, weights=norm_freq_pt
+                    colloc_bert_embeddings, k=sample_k, weights=norm_freq_en
                 )
             )
-            _sampled_collocs_en = torch.stack(
-                random_generator.choices(
-                    colloc_bert_embeddings, k=sample_k_en, weights=norm_freq_en
-                )
-            )
-            sampled_collocs = torch.concat([_sampled_collocs_pt, _sampled_collocs_en], dim=0)
 
         matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
 
@@ -365,7 +295,9 @@ def run_experiment(
         # TODO: document noise procedure
         # again, why is noising per dimension so different?
         noise_mean = torch.tensor([0.0]).expand(M, embed_dim)
-        noise_std = matrix.std().expand(M, embed_dim) / 2  # tie noise to the std of the matrix
+        noise_std = (
+            matrix.std().expand(M, embed_dim) / 2
+        )  # tie noise to the std of the matrix
 
         print(f"Noising with std {noise_std.mean()}")
         noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
@@ -378,7 +310,9 @@ def run_experiment(
         # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
         noisy_mem = noisy_mem.to(device)
 
-        minz = Minerva2(Mat=noisy_mem)  # initialize the Minerva2 model with the noisy memory matrix
+        minz = Minerva2(
+            Mat=noisy_mem
+        )  # initialize the Minerva2 model with the noisy memory matrix
 
         # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
 
@@ -387,39 +321,19 @@ def run_experiment(
         if os.environ.get("MINERVA_DEBUG"):
             DEBUG_N = 10
             logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
-            items = list(colloc2BERT.items())[:DEBUG_N]
+            items = list(colloc_embeddings.items())[:DEBUG_N]
         else:
-            items = colloc2BERT.items()
+            items = colloc_embeddings.items()
 
         for item, data in items:
             vec = data["vec"]
-            act, rt = minz.recognize(vec.to(device), k=minerva_k, maxiter=minerva_max_iter)
+            act, rt = minz.recognize(
+                vec.to(device), k=minerva_k, maxiter=minerva_max_iter
+            )
             output.append([item, act.detach().cpu().item(), rt, data["n_kwics"]])
             print(
                 f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
             )
-
-            # # set up a dataframe to write the current results to a uniquely-named CSV file
-
-            # results_l1 = pd.DataFrame(
-            #     data={
-            #         "mode": "l1",
-            #         "id": [s],
-            #         "participant": [p + 1],
-            #         "item": [item],
-            #         "act": [act.item()],
-            #         "rt": [rt],
-            #     }
-            # )
-
-            # with FileLock(out_filename + ".lock"):
-            #     if not os.path.exists(out_filename):
-            #         # delete the file if it exists and write the dataframe with column names
-            #         # to the top of the new file
-            #         results_l1.to_csv(out_filename, mode="w", header=True, index=False)
-            #     else:
-            #         # append the dataframe to the existing file without column names
-            #         results_l1.to_csv(out_filename, mode="a", header=False, index=False)
 
         print(
             f" Done with Participant {p+1} | Seed {s}  \n----------------------------------",
@@ -459,11 +373,11 @@ def run_experiment(
     )
 
     results_df = pd.concat(results, ignore_index=True)
-    results_df["space_lang"] = space_lang
-    results_df["frequency_lang"] = frequency_lang
+    results_df["embedding_model"] = embedding_model
+    results_df["is_noise_embeddings"] = do_noise_embeddings
+    results_df["is_equal_frequency"] = do_equal_frequency
     results_df["minerva_k"] = minerva_k
     results_df["minerva_max_iter"] = minerva_max_iter
-    results_df["freq_fraction_pt"] = freq_fraction_pt if frequency_lang == "mix" else -1
     results_df["avg_last_n_layers"] = avg_last_n_layers
 
     return results_df
@@ -476,26 +390,14 @@ def run_experiment(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli.csv")
+    parser.add_argument(
+        "-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli_idioms.csv"
+    )
     parser.add_argument(
         "-k",
         "--kwics_file_to_use",
         help="Kwics complement to dataset to use, or 'none' to use no kwics",
-        default="data/stimuli_kwics.json",
-    )
-    parser.add_argument(
-        "-l",
-        "--space_lang",
-        help="Use embeddings from this language space (en, pt, en_aligned, en_noise, pt_noise)",
-        default="en",
-        choices=["en", "pt", "en_aligned", "en_noise", "pt_noise"],
-    )
-    parser.add_argument(
-        "-f",
-        "--frequency_lang",
-        help="Use frequency counts from this language (en, pt, mix, equal)",
-        default="en",
-        choices=["en", "pt", "mix", "equal"],
+        default="data/stimuli_idioms_kwics.json",
     )
     parser.add_argument(
         "-n",
@@ -505,15 +407,23 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--en_pt_trans_pickle",
-        help="Path to pickle file containing pt translations of en embeddings (required for aligned space_lang)",
-        default=None,
+        "-m",
+        "--embedding_model",
+        help="Which model to use for embeddings (sbert, fasttext)",
+        default="sbert",
+        choices=["sbert", "fasttext"],
     )
     parser.add_argument(
-        "--freq_fraction_pt",
-        help="Use this fraction of PT in frequency mixing (only applicable for aligned space_lang, default 0.6)",
-        default=0.6,
-        type=float,
+        "--do_noise_embeddings",
+        help="Use random noise embeddings",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--do_equal_frequency",
+        help="Sample collocations with equal frequency",
+        action="store_true",
+        default=False,
     )
     parser.add_argument(
         "--minerva_k",
@@ -561,18 +471,19 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
+
     results_df = run_experiment(
         dataset_to_use=args.dataset_to_use,
         kwics_file_to_use=args.kwics_file_to_use,
-        space_lang=args.space_lang,
-        frequency_lang=args.frequency_lang,
         num_participants=args.num_participants,
-        en_pt_trans_pickle=args.en_pt_trans_pickle,
-        freq_fraction_pt=args.freq_fraction_pt,
+        embedding_model=args.embedding_model,
+        do_noise_embeddings=args.do_noise_embeddings,
+        do_equal_frequency=args.do_equal_frequency,
         minerva_k=args.minerva_k,
         minerva_max_iter=args.minerva_max_iter,
         num_workers=args.num_workers,
-        concat_tokens=args.concat_tokens,
+        do_concat_tokens=args.concat_tokens,
         avg_last_n_layers=args.avg_last_n_layers,
         label=args.label,
     )
@@ -581,6 +492,6 @@ if __name__ == "__main__":
         results_df.to_csv(args.append_to_file, mode="a", header=False, index=False)
         print(f"Appended results to {args.append_to_file}")
     else:
-        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-lang_{args.space_lang}-freq_{args.frequency_lang}{f'-mix{args.freq_fraction_pt}' if args.frequency_lang == 'mix' else ''}-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.embedding_model}-{args.num_participants}p-{'noise' if args.do_noise_embeddings else ''}-{'equal_f' if args.do_equal_frequency else ''}-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
         results_df.to_csv(out_file, index=False)
         print(f"Wrote results to {out_file}")

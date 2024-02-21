@@ -1,4 +1,5 @@
 import argparse
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
@@ -7,12 +8,12 @@ from run_one_experiment import run_experiment
 # Run all experiments
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli.csv")
+    parser.add_argument("-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli_idioms_clean.csv")
     parser.add_argument(
         "-k",
         "--kwics_file_to_use",
         help="Kwics complement to dataset to use, or 'none' to use no kwics",
-        default="data/stimuli_kwics.json",
+        default="data/stimuli_idioms_kwics.json",
     )
     parser.add_argument(
         "-n",
@@ -22,22 +23,9 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--en_pt_trans_pickle",
-        help="Path to pickle file containing pt translations of "
-        "en embeddings (required for aligned space_lang)",
-        default=None,
-    )
-    parser.add_argument(
-        "--freq_fraction_pt",
-        help="Mix fractions of pt frequency data in mixed space_lang, separated by commas,"
-        "default '0.25,0.5,0.75'",
-        default="0.25,0.5,0.75",
-        type=str,
-    )
-    parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
-        default=0.93,
+        default=0.95,
         type=float,
     )
     parser.add_argument(
@@ -74,39 +62,36 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    mix_freq_fracs = [float(f) for f in args.freq_fraction_pt.split(",")]
-
     results_dfs = []
-    for space_lang in ["en", "pt", "en_noise", "pt_noise"]:
-        for frequency_lang in ["en", "pt", *mix_freq_fracs, "equal"]:
-            if frequency_lang in mix_freq_fracs:
-                frequency_lang = "mix"
-                freq_fraction_pt = frequency_lang
-            else:
-                freq_fraction_pt = None
+    for embedding_model, do_noise_embeddings, do_equal_frequency in product(
+        # ["sbert", "fasttext"],
+        ["sbert"],
+        [False, True],
+        [False, True],
+    ):
+        print(
+            f"Running experiment with model {embedding_model}" +
+            (' with noise' if do_noise_embeddings else '') +
+            (' with equal frequency' if do_equal_frequency else '')
+        )
+        results_df = run_experiment(
+            dataset_to_use=args.dataset_to_use,
+            kwics_file_to_use=args.kwics_file_to_use,
+            num_participants=args.num_participants,
+            embedding_model=embedding_model,
+            do_noise_embeddings=do_noise_embeddings,
+            do_equal_frequency=do_equal_frequency,
+            minerva_k=args.minerva_k,
+            minerva_max_iter=args.minerva_max_iter,
+            num_workers=args.num_workers,
+            do_concat_tokens=args.concat_tokens,
+            avg_last_n_layers=args.avg_last_n_layers,
+            label=args.label,
+        )
 
-            print(
-                f"Running experiment with space_lang={space_lang} and frequency_lang={frequency_lang}"
-            )
-            results_df = run_experiment(
-                dataset_to_use=args.dataset_to_use,
-                kwics_file_to_use=args.kwics_file_to_use,
-                space_lang=space_lang,
-                frequency_lang=frequency_lang,
-                num_participants=args.num_participants,
-                en_pt_trans_pickle=args.en_pt_trans_pickle,
-                freq_fraction_pt=freq_fraction_pt,
-                minerva_k=args.minerva_k,
-                minerva_max_iter=args.minerva_max_iter,
-                num_workers=args.num_workers,
-                concat_tokens=args.concat_tokens,
-                avg_last_n_layers=args.avg_last_n_layers,
-                label=args.label,
-            )
-
-            results_dfs.append(results_df)
+        results_dfs.append(results_df)
 
     results_df = pd.concat(results_dfs)
-    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-{f'-mix{args.freq_fraction_pt}'}-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
     results_df.to_csv(out_file, index=False)
     print("Wrote results to", out_file)

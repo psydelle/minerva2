@@ -5,13 +5,8 @@ import requests as r
 import pandas as pd
 import math
 import click
-from dotenv import load_dotenv
 
-load_dotenv()  # take environment variables from .env.
-
-API_KEY = os.environ.get("SE_API_KEY")
-USERNAME = os.environ.get("SE_USERNAME")
-base_url = "https://api.sketchengine.eu/bonito/run.cgi"
+from se_utils import get_ws, get_corp_info, get_vn_kwics
 
 # df = pd.DataFrame(
 #     columns=[
@@ -45,90 +40,12 @@ CORPUS_NAME = "preloaded/ententen21_tt31"
 N_QUERY_NOUNS = 100
 
 
-def get_ws(word, pos="-v"):
-    data = {
-        "corpname": CORPUS_NAME,
-        "format": "json",
-        "lemma": word,
-        "lpos": pos,
-        "maxitems": N_QUERY_NOUNS,
-        "structured": 1,
-    }
-    sketch_data = r.get(
-        base_url + "/wsketch?corpname=%s" % data["corpname"],
-        params=data,
-        auth=(USERNAME, API_KEY),
-    ).json()
-    return sketch_data
-
-
-def get_kwics(verb, noun):
-    data = {
-        "corpname": CORPUS_NAME,
-        "q": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
-        "concordance_query[queryselector]": "iqueryrow",
-        "concordance_query[iquery]": f'q[lempos_lc="{verb}-v"][]?[lempos_lc="{noun}-n"] within <s />',
-        "default_attr": "lemma",
-        "attr": "word",
-        # "refs": "=bncdoc.alltyp",
-        "attr_allpos": "all",
-        "cup_hl": "q",
-        "structs": "s,g",
-        "fromp": "1",
-        "pagesize": "100",
-        "kwicleftctx": "300#",
-        "kwicrightctx": "300#",
-    }
-    kwics_data = r.get(
-        base_url + "/concordance",
-        params=data,
-        auth=(USERNAME, API_KEY),
-    ).json()
-    lines = kwics_data["Lines"]
-    clean_lines = []
-    kwic_words = []
-    for line in lines:
-        left = [x.get("str", x.get("strc")) for x in line["Left"]]
-        kwic = [x.get("str", x.get("strc")) for x in line["Kwic"]]
-        right = [x.get("str", x.get("strc")) for x in line["Right"]]
-
-        _ss = "</s><s>"
-
-        if _ss in left:
-            left.reverse()
-            left_start = left.index(_ss)
-            left_start = len(left) - left_start - 1
-            left.reverse()
-        else:
-            left_start = 0
-        right_end = right.index(_ss) if _ss in right else -1
-        assert _ss not in kwic
-
-        left_clean = left[left_start + 1 :]
-        right_clean = right[:right_end]
-        clean_line = " ".join(left_clean + kwic + right_clean)
-        clean_lines.append(clean_line)
-        kwic_words.append((kwic[0], kwic[-1]))
-
-    return clean_lines, kwic_words
-
-
 def mi(freq_xy, freq_x, freq_y, N):
     return math.log2(2 * freq_xy * N / (freq_x * freq_y))
 
 
-def get_corp_info(corpus_name):
-    data = {"corpname": corpus_name}
-    corp_data = r.get(
-        "https://api.sketchengine.eu/search/corp_info",
-        params=data,
-        auth=(USERNAME, API_KEY),
-    ).json()
-    return corp_data
-
-
 def process_verb(verb, corp_info):
-    sketch_data = get_ws(verb, pos="-v")
+    sketch_data = get_ws(CORPUS_NAME, verb, pos="-v", max_items=N_QUERY_NOUNS)
 
     for rel in sketch_data["Gramrels"]:
         if rel["name"] == 'objects of "%w"':
@@ -140,13 +57,17 @@ def process_verb(verb, corp_info):
     selected_indices = {}
     while page * PAGE_N < N_QUERY_NOUNS:
         while True:
-            for i, coll_data in enumerate(all_coll_data[page * PAGE_N : (page + 1) * PAGE_N]):
+            for i, coll_data in enumerate(
+                all_coll_data[page * PAGE_N : (page + 1) * PAGE_N]
+            ):
                 index = i + page * PAGE_N
                 print(
                     f'{index}{selected_indices.get(index, "")}: {(verb + " " + coll_data["word"]).ljust(25, " ")} - Score: {coll_data["score"]}, {coll_data["count"]}'
                 )
 
-            print("Type c <N>, f <N>, i <N>, d to move to next verb, n for next page, p for prev page, exit to exit: ")
+            print(
+                "Type c <N>, f <N>, i <N>, d to move to next verb, n for next page, p for prev page, exit to exit: "
+            )
             inp = input()
             if inp == "exit":
                 # return
@@ -197,7 +118,9 @@ def process_verb(verb, corp_info):
             item_data["logDice"] = coll_data["score"]
 
             # get frequency stats
-            noun_stats = get_ws(coll_data["word"], "-n")
+            noun_stats = get_ws(
+                CORPUS_NAME, coll_data["word"], "-n", max_items=N_QUERY_NOUNS
+            )
             item_data["fcoll"] = noun_stats["freq"]
             item_data["MI"] = mi(
                 item_data["fitem"],
@@ -205,7 +128,13 @@ def process_verb(verb, corp_info):
                 item_data["fcoll"],
                 N=int(corp_info["sizes"]["wordcount"]),
             )
-            kwics, kwic_words = get_kwics(verb, coll_data["word"])
+            # kwics, kwic_words = get_vn_kwics(CORPUS_NAME, verb, coll_data["word"])
+            kwics, kwic_words = get_vn_kwics(
+                CORPUS_NAME,
+                ws_seek_id=coll_data["seek"],
+                n_kwics=100,
+                n_ctx_sentences=1,
+            )
 
             k = dict()
             k["kwics"] = kwics
@@ -216,14 +145,21 @@ def process_verb(verb, corp_info):
 
 
 @click.command()
-@click.option("-o", "--out_file", required=True, help="Path to which to write CSV. WILL OVERWRITE EXISTING.")
 @click.option(
-    "--do_append/--no_append", default=False, help="Append to out_file instead of overwriting it."
+    "-o",
+    "--out_file",
+    required=True,
+    help="Path to which to write CSV. WILL OVERWRITE EXISTING.",
+)
+@click.option(
+    "--do_append/--no_append",
+    default=False,
+    help="Append to out_file instead of overwriting it.",
 )
 def process_corpus(out_file, do_append):
     if not out_file.endswith(".csv"):
         raise ValueError("Out file must be a CSV!")
-    
+
     corp_info = get_corp_info(CORPUS_NAME)
 
     ## read in the dataset
@@ -262,6 +198,7 @@ def process_corpus(out_file, do_append):
 
     with open(kwics_json_path, "w") as f:
         json.dump(kwics, f)
+
 
 if __name__ == "__main__":
     process_corpus()

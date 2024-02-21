@@ -94,7 +94,7 @@ def get_word_vector(
         word1_toks, word2_toks = None, None
         for word1_id in word2tokens:
             word1 = __get_word_from_word_id(i, cxt, word1_id)
-            for offset in range(1, 8):
+            for offset in range(1, 15):
                 word2_id = word1_id + offset
                 # attempt to match second word
                 if (

@@ -80,7 +80,7 @@ shape none,none,none,idiom,shape,none
 share bed,15565.0,6.0,idiom,share,bed
 shatter record,9028.0,6.3,idiom,shatter,record
 shift burden,14511.0,8.2,idiom,shift,burden
-silence critics,9062.0,9.6,idiom,silence,critics
+silence critic,9062.0,9.6,idiom,silence,critic
 skip town,4297.0,6.3,idiom,skip,town
 slap label,2004.0,6.3,idiom,slap,label
 slash bill,1279.0,4.4,idiom,slash,bill
@@ -123,7 +123,7 @@ bend leg,7787.0,7.5,prod,bend,leg
 blow air,19266.0,8.4,prod,blow,air
 break bone,66577.0,8.8,prod,break,bone
 build structure,85865.0,7.6,prod,build,structure
-capture soldiers,10187.0,6.7,prod,capture,soldiers
+capture soldier,10187.0,6.7,prod,capture,soldier
 carry load,45814.0,8.2,prod,carry,load
 cast line,7730.0,5.3,prod,cast,line
 catch fish,111494.0,9.3,prod,catch,fish
@@ -224,7 +224,7 @@ tackle player,1690.0,3.5,prod,tackle,player
 taste flavor,4555.0,7.2,prod,taste,flavor
 throw rock,33109.0,8.0,prod,throw,rock
 twist ankle,5585.0,9.1,prod,twist,ankle
-unearth fossils,748.0,7.1,prod,unearth,fossils
+unearth fossil,748.0,7.1,prod,unearth,fossil
 unleash dog,2534.0,5.4,prod,unleash,dog
 unlock car,5734.0,5.3,prod,unlock,car
 weave basket,7588.0,8.5,prod,weave,basket
@@ -235,7 +235,7 @@ close window,46496.0,8.3,prod,close,window
 run marathon,42041.0,7.2,prod,run,marathon
 abandon plan,19302.0,6.7,collocation,abandon,plan
 battle disease,4809.0,6.5,collocation,battle,disease
-beat odds,12754.0,7.7,collocation,beat,odds
+beat odd,12754.0,7.7,collocation,beat,odd
 bend rule,14612.0,7.1,collocation,bend,rule
 blow mind,58033.0,9.4,collocation,blow,mind
 break silence,53167.0,8.5,collocation,break,silence
