@@ -174,6 +174,7 @@ def run_experiment(
     do_concat_tokens=False,
     avg_last_n_layers=4,
     label=None,
+    forget_prob=0.6,
     # do_log_freq=True
 ):
     ## read in the dataset
@@ -251,10 +252,6 @@ def run_experiment(
     # norm by row, (as suggested in SBERT?)
     # colloc_bert_embeddings = colloc_bert_embeddings / colloc_bert_embeddings.norm(dim=1).unsqueeze(1)
 
-    ## Now we got to add some noise to the memory matrix (parameter L)
-    L = 0.6  # 0.6 is what the meta paper says
-    # noise between 0 and 1
-
     ## Let's run our experiment. First we generate random seeds to simulate
     ## 99 l1 participants from Souza and Chalmers (2021)
     participant_seeds = []
@@ -297,7 +294,7 @@ def run_experiment(
         noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
         noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
         noisy_mem = torch.where(
-            noise_mask < L, matrix + noise_gaussian, matrix
+            noise_mask < forget_prob, matrix + noise_gaussian, matrix
         )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
         # noisy_mem = torch.where(
         #     noise_mask < L, 0.0, matrix

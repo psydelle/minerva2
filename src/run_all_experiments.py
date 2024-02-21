@@ -63,9 +63,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     results_dfs = []
-    for embedding_model, do_noise_embeddings, do_equal_frequency in product(
+    for embedding_model, forget_prob, minerva_k, do_noise_embeddings, do_equal_frequency in product(
         # ["sbert", "fasttext"],
         ["sbert"],
+        [0.0, 0.2, 0.4, 0.6, 0.8],
+        [0.95, 0.96, 0.97, 0.98, 0.99],
         [False, True],
         [False, True],
     ):
@@ -81,12 +83,13 @@ if __name__ == "__main__":
             embedding_model=embedding_model,
             do_noise_embeddings=do_noise_embeddings,
             do_equal_frequency=do_equal_frequency,
-            minerva_k=args.minerva_k,
+            minerva_k=minerva_k,
             minerva_max_iter=args.minerva_max_iter,
             num_workers=args.num_workers,
             do_concat_tokens=args.concat_tokens,
             avg_last_n_layers=args.avg_last_n_layers,
             label=args.label,
+            forget_prob=forget_prob,
         )
 
         results_dfs.append(results_df)
