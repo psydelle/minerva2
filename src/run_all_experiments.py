@@ -23,6 +23,12 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
+        "--do_log_freq",
+        help="Log-transform the frequency data before sampling",
+        action="store_true",
+        default=False,
+    ),
+    parser.add_argument(
         "--minerva_k",
         help="Minerva k (threshold) parameter",
         default=0.95,
@@ -85,6 +91,7 @@ if __name__ == "__main__":
             embedding_model=embedding_model,
             do_noise_embeddings=do_noise_embeddings,
             do_equal_frequency=do_equal_frequency,
+            do_log_freq=args.do_log_freq,
             minerva_k=minerva_k,
             minerva_max_iter=args.minerva_max_iter,
             num_workers=args.num_workers,
@@ -97,6 +104,6 @@ if __name__ == "__main__":
         results_dfs.append(results_df)
 
     results_df = pd.concat(results_dfs)
-    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+    out_file = f"results/combo_results-{Path(args.dataset_to_use).name[:-4]}-{args.num_participants}p-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-logfreq' if args.do_log_freq else ''}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
     results_df.to_csv(out_file, index=False)
     print("Wrote results to", out_file)

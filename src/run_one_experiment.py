@@ -71,7 +71,6 @@ EN_BERT = "sentence-transformers/all-MiniLM-L6-v2"
 NORM_ALPHA = 0.9
 
 
-
 class Minerva2(object):
     """
     This is a class for the Minerva2 model
@@ -86,9 +85,7 @@ class Minerva2(object):
             assert F is not None, "You need to specify the number of features"
 
     def activate(self, probe, tau=1.0):
-        similarity = torch.cosine_similarity(
-            probe, self.Mat, dim=1
-        )  # had the wrong axis
+        similarity = torch.cosine_similarity(probe, self.Mat, dim=1)
         activation = torch.abs(similarity**tau) * torch.sign(
             similarity
         )  # make sure we preserve the signs
@@ -168,6 +165,7 @@ def run_experiment(
     embedding_model="sbert",
     do_noise_embeddings=False,
     do_equal_frequency=False,
+    do_log_freq=False,
     minerva_k=0.955,
     minerva_max_iter=450,
     num_workers=1,
@@ -175,25 +173,15 @@ def run_experiment(
     avg_last_n_layers=4,
     label=None,
     forget_prob=0.6,
-    # do_log_freq=True
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
     dataset = df[["item"]]
 
-    # # convert comma-sep number strings to numbers
-    # _coll_freq_en = df[["fitem", "fnode", "fcoll"]].applymap(
-    #     lambda x: float(str(x).replace(",", ""))
-    # )
-
-    # if do_log_freq:
-    #     _coll_freq_en = (_coll_freq_en+2).applymap(np.log10)
-    #     _coll_freq_pt = (_coll_freq_pt+2).applymap(np.log10)
-
-    # norm_freq_en = norm_jm(
-    #     _coll_freq_en["fitem"], _coll_freq_en["fnode"], _coll_freq_en["fcoll"]
-    # )
     norm_freq_en = df["fitem"]
+
+    if do_log_freq:
+        norm_freq_en = norm_freq_en.apply(np.log10)
 
     if kwics_file_to_use == "none":
         kwics = None
@@ -370,6 +358,7 @@ def run_experiment(
     results_df["minerva_k"] = minerva_k
     results_df["minerva_max_iter"] = minerva_max_iter
     results_df["avg_last_n_layers"] = avg_last_n_layers
+    results_df["forget_prob"] = forget_prob
 
     return results_df
 
@@ -382,7 +371,10 @@ def run_experiment(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-d", "--dataset_to_use", help="Dataset to use", default="data/stimuli_idioms.csv"
+        "-d",
+        "--dataset_to_use",
+        help="Dataset to use",
+        default="data/stimuli_idioms.csv",
     )
     parser.add_argument(
         "-k",
@@ -413,6 +405,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--do_equal_frequency",
         help="Sample collocations with equal frequency",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--do_log_freq",
+        help="Log-transform the frequency data before sampling",
         action="store_true",
         default=False,
     )
@@ -471,6 +469,7 @@ if __name__ == "__main__":
         embedding_model=args.embedding_model,
         do_noise_embeddings=args.do_noise_embeddings,
         do_equal_frequency=args.do_equal_frequency,
+        do_log_freq=args.do_log_freq,
         minerva_k=args.minerva_k,
         minerva_max_iter=args.minerva_max_iter,
         num_workers=args.num_workers,
