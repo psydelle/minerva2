@@ -1,0 +1,56 @@
+---
+title: "Distill for R Markdown"
+description: | 
+  Scientific and technical writing, native to the web
+date: "`r Sys.Date()`"
+author:
+  - first_name: "Sydelle"
+    last_name: "de Souza"
+    url: https://github.com/yihui
+    affiliation: Posit Software, PBC
+    affiliation_url: https://www.posit.co
+    orcid_id: 0000-0003-0645-5666
+  - name: "JJ Allaire"
+    url: https://github.com/jjallaire
+    affiliation: Posit Software, PBC
+    affiliation_url: https://www.posit.co
+  - name: "Rich Iannone"
+    url: https://github.com/rich-iannone
+    affiliation: Posit Software, PBC
+    affiliation_url: https://www.posit.co
+# bibliography: references.bib
+output: distill::distill_article
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+  warning = TRUE,
+  message = TRUE,
+  comment = "##",
+  R.options = list(width = 60))
+
+# Load tidyverse packages
+library(tidyverse)
+
+# Load the ggplot2 package
+library(ggplot2)
+ggplot2::theme_set(ggplot2::theme_minimal())
+
+
+# Load the distill package
+library(distill)
+
+```
+
+```{r load-data include=FALSE}
+# Load the data from csv
+minerva <- read_csv("minerva_full_results.csv")
+```
+
+# Descriptive Statistics
+
+```{r descriptive-stats}
+# Group by condition and calculate the mean and standard deviation
+
+
