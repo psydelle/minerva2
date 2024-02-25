@@ -68,7 +68,7 @@ np.random.seed(0)
 # EN_BERT = "distilbert-base-cased"
 # PT_BERT = "adalbertojunior/distilbert-portuguese-cased"
 EN_BERT = "sentence-transformers/all-MiniLM-L6-v2"
-NORM_ALPHA = 0.9
+# NORM_ALPHA = 0.9
 
 
 class Minerva2(object):
@@ -173,6 +173,7 @@ def run_experiment(
     avg_last_n_layers=4,
     label=None,
     forget_prob=0.6,
+    dry_run_dump=False,
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
@@ -236,6 +237,16 @@ def run_experiment(
     colloc_bert_embeddings = (
         colloc_bert_embeddings - colloc_bert_embeddings.mean()
     ) / colloc_bert_embeddings.std()
+
+    if dry_run_dump:
+        # dump the embeddings to a file for inspection
+        filename = f"data/processed/{embedding_model}_embeddings.dat"
+        with open(filename, "wb") as f:
+            pickle.dump(colloc_bert_embeddings, f)
+
+            print(f"Dumped embeddings to file {filename} for inspection.")
+
+        exit()
 
     # norm by row, (as suggested in SBERT?)
     # colloc_bert_embeddings = colloc_bert_embeddings / colloc_bert_embeddings.norm(dim=1).unsqueeze(1)
@@ -458,6 +469,12 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
+    parser.add_argument(
+        "--dry_run_dump",
+        help="Dump the embeddings to a file for inspection",
+        action="store_true",
+        default=False,
+    )
     args = parser.parse_args()
 
     assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
@@ -476,6 +493,7 @@ if __name__ == "__main__":
         do_concat_tokens=args.concat_tokens,
         avg_last_n_layers=args.avg_last_n_layers,
         label=args.label,
+        dry_run_dump=args.dry_run_dump,
     )
 
     if args.append_to_file:

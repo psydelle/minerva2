@@ -12,5 +12,7 @@ dependencies:
   - transformers
   - matplotlib
   - filelock
+  - seaborn
+  - tqdm
   - pip:
     - python-dotenv
