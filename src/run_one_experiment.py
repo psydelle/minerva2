@@ -51,7 +51,12 @@ from joblib import Parallel, delayed  # for parallel processing
 from filelock import FileLock
 import argparse
 
-from extract_embeddings import get_word_vector  # for BERT embeddings
+from extract_embeddings import (
+    get_word_vector,
+    get_fasttext_vector,
+)  # for BERT embeddings
+
+from flair.embeddings import WordEmbeddings
 
 # from newest_regression import CollocNet
 # -----------------------------------------------------------------------------#
@@ -151,6 +156,21 @@ def get_embeddings(
 
             # dictionary contains en keys regardless of what the embeddings are
             colloc2BERT[item] = {"vec": vec.to("cpu"), "n_kwics": n_kwics}
+    elif model_name == "fasttext":
+        model = WordEmbeddings("en-crawl")
+        for item in dataset["item"]:
+            colloc_kwics = kwics[item]["kwics"]
+            colloc_kwics_words = kwics[item]["kwic_words"]
+            n_kwics = len(colloc_kwics)
+            print(f'Retrieving vector for "{item}" from {model_name}')
+            vec = get_fasttext_vector(
+                model,
+                colloc_kwics,
+                colloc_kwics_words,
+                do_concat_tokens=do_concat_tokens,
+            )
+
+            colloc2BERT[item] = {"vec": vec, "n_kwics": n_kwics}
 
     return colloc2BERT
 
@@ -211,7 +231,9 @@ def run_experiment(
             colloc_embeddings = pickle.load(colloc2BERTfile)
         print(f"Read from file {embeddings_cache_filename}")
 
-    embed_dim = 384 if not do_concat_tokens else 384 * 2
+    embed_dim = 384 if embedding_model == "sbert" else 300
+    if do_concat_tokens:
+        embed_dim *= 2
 
     if do_noise_embeddings:
         # generate random vectors for the items in the dataset
@@ -500,6 +522,6 @@ if __name__ == "__main__":
         results_df.to_csv(args.append_to_file, mode="a", header=False, index=False)
         print(f"Appended results to {args.append_to_file}")
     else:
-        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.embedding_model}-{args.num_participants}p-{'noise' if args.do_noise_embeddings else ''}-{'equal_f' if args.do_equal_frequency else ''}-last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
+        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.embedding_model}-{args.num_participants}p-{'noise-' if args.do_noise_embeddings else ''}{'equal_f-' if args.do_equal_frequency else ''}last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
         results_df.to_csv(out_file, index=False)
         print(f"Wrote results to {out_file}")

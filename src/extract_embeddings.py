@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModel
 from transformers import logging
+from flair.data import Sentence
 
 logging.set_verbosity_error()
 
@@ -21,7 +22,9 @@ def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=Fal
     # Get all hidden states
     states = output.hidden_states
     # Stack and mean over layers
-    output = torch.stack([states[i] for i in layers]).mean(0)  # n_contexts x n_tokens x embed_dim
+    output = torch.stack([states[i] for i in layers]).mean(
+        0
+    )  # n_contexts x n_tokens x embed_dim
     # return output[0]
 
     # # Only select the tokens that constitute the requested word
@@ -42,6 +45,28 @@ def get_hidden_states(encoded, model, layers, batch_token_ids, concat_tokens=Fal
     # assert word_embeddings.size() == (2, 384)
 
     if concat_tokens:
+        word_tokens_output = word_embeddings.reshape(-1)
+    else:
+        word_tokens_output = torch.mean(word_embeddings, dim=0)
+
+    return word_tokens_output
+
+
+def get_fasttext_vector(
+    model, contexts: List[str], context_words: List[List[str]], do_concat_tokens=False
+):
+    embeddings = []
+    for cxt, cxt_words in zip(contexts, context_words):
+        # sentence = Sentence(cxt)
+        sentence = Sentence(" ".join(cxt_words))
+        model.embed(sentence)
+        _embeddings = [token.embedding for token in sentence]
+        assert len(_embeddings) == len(cxt_words) == 2
+        embeddings.append(torch.stack(_embeddings))
+
+    word_embeddings = torch.stack(embeddings, dim=0).mean(dim=0)
+
+    if do_concat_tokens:
         word_tokens_output = word_embeddings.reshape(-1)
     else:
         word_tokens_output = torch.mean(word_embeddings, dim=0)
@@ -124,19 +149,25 @@ def get_word_vector(
     # token_ids_1 = np.where(encoded_word_ids == word_1_idx)[0]
     # token_ids = (token_ids_0, token_ids_1)
 
-    return get_hidden_states(encoded, model, layers, encoded_word2toks, concat_tokens=concat_tokens)
+    return get_hidden_states(
+        encoded, model, layers, encoded_word2toks, concat_tokens=concat_tokens
+    )
 
 
 def main(layers=None):
     # Use last four layers by default
     layers = [-4, -3, -2, -1] if layers is None else layers
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-    model = AutoModel.from_pretrained("distilbert-base-uncased", output_hidden_states=True)
+    model = AutoModel.from_pretrained(
+        "distilbert-base-uncased", output_hidden_states=True
+    )
 
     sent = "I like cookies ."
     idx = get_word_idx(sent, "cookies")
 
-    word_embedding = get_word_vector(sent, idx, tokenizer, model, layers, concat_tokens=False)
+    word_embedding = get_word_vector(
+        sent, idx, tokenizer, model, layers, concat_tokens=False
+    )
 
     return word_embedding
 
