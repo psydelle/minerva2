@@ -284,7 +284,7 @@ def run_experiment(
     def iter(p, s, device):
         # print(f"\nSeed {s}\n")
         random_generator = random.Random(s)
-        torch_generator = torch.Generator().manual_seed(s)
+        torch_generator = torch.Generator(device=device).manual_seed(s)
 
         # sample from the collocations to make a M x 768 matrix
         sample_k = M - len(colloc_bert_embeddings)
@@ -300,7 +300,7 @@ def run_experiment(
                 )
             )
 
-        matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0)
+        matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0).to(device)
 
         assert matrix.size() == (M, embed_dim), "Huh?"
 
