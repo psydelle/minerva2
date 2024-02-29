@@ -306,14 +306,15 @@ def run_experiment(
 
         # TODO: document noise procedure
         # again, why is noising per dimension so different?
-        noise_mean = torch.tensor([0.0]).expand(M, embed_dim)
+        noise_mean = torch.tensor([0.0]).expand(M, embed_dim).to(device)
+        # tie noise to the std of the matrix
         noise_std = (
             matrix.std().expand(M, embed_dim) / 2
-        )  # tie noise to the std of the matrix
+        ).to(device)
 
         print(f"Noising with std {noise_std.mean()}")
-        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
-        noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
+        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator, device=device)
+        noise_mask = torch.rand((M, embed_dim), generator=torch_generator, device=device)
         noisy_mem = torch.where(
             noise_mask < forget_prob, matrix + noise_gaussian, matrix
         )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
