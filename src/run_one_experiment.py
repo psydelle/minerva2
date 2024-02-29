@@ -313,7 +313,7 @@ def run_experiment(
         ).to(device)
 
         print(f"Noising with std {noise_std.mean()}")
-        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator, device=device)
+        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator).to(device)
         noise_mask = torch.rand((M, embed_dim), generator=torch_generator, device=device)
         noisy_mem = torch.where(
             noise_mask < forget_prob, matrix + noise_gaussian, matrix
