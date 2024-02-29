@@ -170,7 +170,7 @@ def get_embeddings(
                 do_concat_tokens=do_concat_tokens,
             )
 
-            colloc2BERT[item] = {"vec": vec, "n_kwics": n_kwics}
+            colloc2BERT[item] = {"vec": vec.to("cpu"), "n_kwics": n_kwics}
 
     return colloc2BERT
 
@@ -219,7 +219,7 @@ def run_experiment(
     if not os.path.isfile(embeddings_cache_filename):
         colloc_embeddings = get_embeddings(
             dataset, kwics, embedding_model, do_concat_tokens, avg_last_n_layers
-        ).to("cpu")
+        )
         # write the embeddings dictionary to a file to be re-used next time we run the code
         with open(embeddings_cache_filename, "wb") as colloc2BERTfile:
             pickle.dump(colloc_embeddings, colloc2BERTfile)
