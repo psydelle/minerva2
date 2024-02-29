@@ -219,7 +219,7 @@ def run_experiment(
     if not os.path.isfile(embeddings_cache_filename):
         colloc_embeddings = get_embeddings(
             dataset, kwics, embedding_model, do_concat_tokens, avg_last_n_layers
-        )
+        ).to("cpu")
         # write the embeddings dictionary to a file to be re-used next time we run the code
         with open(embeddings_cache_filename, "wb") as colloc2BERTfile:
             pickle.dump(colloc_embeddings, colloc2BERTfile)
@@ -251,7 +251,7 @@ def run_experiment(
             )
 
     # stack the embeddings into a tensor
-    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc_embeddings.values()])
+    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc_embeddings.values()]).to("cpu")
 
     # normalize the embeddings to standard normal
     # TODO: why does normalizing per dimension produce drastically different results?
