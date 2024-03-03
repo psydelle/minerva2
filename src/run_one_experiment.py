@@ -111,6 +111,37 @@ class Minerva2(object):
             big, tau = self.recognize(probe, tau + 1, k, maxiter)
         return big, tau
 
+class AttentionMinerva2(Minerva2):
+    def __init__(self, F=None, M=None, Mat=None):
+        super().__init__(F=F, M=M, Mat=Mat)
+
+    def activate(self, probe, tau=1.0):
+        similarity = (probe @ self.Mat.T) / np.sqrt(
+            probe.shape[0]
+        )
+        sharpened_sim = torch.abs(similarity**tau) * torch.sign(
+            similarity
+        )
+        # activation = torch.softmax(sharpened_sim, dim=0)
+        activation = sharpened_sim / (torch.sum(sharpened_sim) + 1e-6)
+        return activation
+
+    def echo(self, probe, tau=1.0):
+        activation = self.activate(probe, tau)
+        # return torch.tensordot(activation, self.Mat, dims=([0], [0]))
+        return activation @ self.Mat
+
+    def recognize(
+        self, probe, tau=1.0, k=0.955, maxiter=450
+    ):  # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
+        echo = self.echo(probe, tau)
+        big = torch.cosine_similarity(echo, probe, dim=0)
+        # similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
+        # big = torch.max(similarity)
+        if big < k and tau < maxiter:
+            big, tau = self.recognize(probe, tau + 1, k, maxiter)
+        return big, tau
+
 
 def get_embeddings(
     dataset: pd.DataFrame,
@@ -326,6 +357,9 @@ def run_experiment(
         minz = Minerva2(
             Mat=noisy_mem
         )  # initialize the Minerva2 model with the noisy memory matrix
+        # minz = AttentionMinerva2(
+        #     Mat=noisy_mem
+        # )  # initialize the Minerva2 model with the noisy memory matrix
 
         # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
 
