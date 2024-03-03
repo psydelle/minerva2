@@ -1,247 +1,247 @@
-item,fitem,score,type,verb,noun
-abandon ship,16629.0,7.9,idiom,abandon,ship
-battle demon,4244.0,8.0,idiom,battle,demon
-beat drum,15198.0,8.0,idiom,beat,drum
-bend knee,27701.0,10.5,idiom,bend,knee
-blow smoke,11725.0,8.6,idiom,blow,smoke
-break leg,677376.0,8.7,idiom,break,leg
-build wall,77579.0,7.5,idiom,build,wall
-capture heart,23582.0,7.5,idiom,capture,heart
-carry weight,72738.0,8.6,idiom,carry,weight
-cast net,17940.0,8.7,idiom,cast,net
-catch eye,163400.0,9.7,idiom,catch,eye
-chase tail,7173.0,8.5,idiom,chase,tail
-cover ground,43449.0,7.4,idiom,cover,ground
-crack case,7313.0,5.0,idiom,crack,case
-crash computer,2527.0,5.8,idiom,crash,computer
-cross line,189753.0,9.8,idiom,cross,line
-cultivate garden,4189.0,6.9,idiom,cultivate,garden
-cut corner,41219.0,8.4,idiom,cut,corner
-dangle carrot,2648.0,9.5,idiom,dangle,carrot
-dent reputation,413.0,4.0,idiom,dent,reputation
-diffuse tension,1814.0,6.6,idiom,diffuse,tension
-distort picture,1905.0,4.1,idiom,distort,picture
-drain swamp,8256.0,9.6,idiom,drain,swamp
-drop line,13304.0,5.9,idiom,drop,line
-enter market,122635.0,8.9,idiom,enter,market
-erase trace,2860.0,7.5,idiom,erase,trace
-face obstacle,25112.0,7.3,idiom,face,obstacle
-fight man,17711.0,5.9,idiom,fight,man
-float boat,12267.0,8.4,idiom,float,boat
-flood market,24774.0,9.0,idiom,flood,market
-forge link,9616.0,6.3,idiom,forge,link
-grasp nettle,2108.0,7.9,idiom,grasp,nettle
-hold key,59256.0,7.2,idiom,hold,key
-hurt eye,8773.0,5.9,idiom,hurt,eye
-ignite fire,9306.0,7.5,idiom,ignite,fire
-inflate bubble,2333.0,7.8,idiom,inflate,bubble
-kick bucket,6257.0,8.2,idiom,kick,bucket
-level field,4459.0,5.9,idiom,level,field
-lift finger,20457.0,8.2,idiom,lift,finger
-lock horn,10804.0,8.4,idiom,lock,horn
-muzzle ox,602.0,9.0,idiom,muzzle,ox
-navigate world,18410.0,6.9,idiom,navigate,world
-pad pocket,2019.0,7.3,idiom,pad,pocket
-pay price,278026.0,9.7,idiom,pay,price
-pick brain,13281.0,7.5,idiom,pick,brain
-pierce veil,4674.0,9.5,idiom,pierce,veil
-push button,90119.0,9.6,idiom,push,button
-raise eyebrow,126474.0,9.3,idiom,raise,eyebrow
-scrape bottom,5734.0,8.7,idiom,scrape,bottom
-share bed,15565.0,6.0,idiom,share,bed
-shatter record,9028.0,6.3,idiom,shatter,record
-shift burden,14511.0,8.2,idiom,shift,burden
-silence critic,9062.0,9.6,idiom,silence,critic
-skip town,4297.0,6.3,idiom,skip,town
-slap label,2004.0,6.3,idiom,slap,label
-slash bill,1279.0,4.4,idiom,slash,bill
-smear opponent,933.0,5.6,idiom,smear,opponent
-smell rose,7425.0,9.4,idiom,smell,rose
-soften blow,10244.0,9.4,idiom,soften,blow
-sow seed,57012.0,10.9,idiom,sow,seed
-spark fire,5462.0,6.5,idiom,spark,fire
-spew venom,2067.0,9.4,idiom,spew,venom
-spill bean,18162.0,10.4,idiom,spill,bean
-spin wheel,25453.0,9.5,idiom,spin,wheel
-spread seed,7216.0,6.7,idiom,spread,seed
-stifle voice,1886.0,4.9,idiom,stifle,voice
-stimulate brain,6316.0,7.3,idiom,stimulate,brain
-stir pot,13006.0,9.4,idiom,stir,pot
-strain ear,2727.0,7.2,idiom,strain,ear
-strike gold,11563.0,7.8,idiom,strike,gold
-taste blood,5479.0,7.0,idiom,taste,blood
-throw money,43659.0,7.3,idiom,throw,money
-twist arm,11204.0,7.6,idiom,twist,arm
-unearth treasure,1465.0,7.1,idiom,unearth,treasure
-unleash hell,2366.0,6.8,idiom,unleash,hell
-unlock door,46638.0,9.0,idiom,unlock,door
-weave web,6389.0,7.9,idiom,weave,web
-fuel fire,9418.0,7.3,idiom,fuel,fire
-fan flame,17553.0,10.9,idiom,fan,flame
-sweeten pot,3461.0,8.0,idiom,sweeten,pot
-close gap,134164.0,10.0,idiom,close,gap
-run race,65736.0,7.6,idiom,run,race
-abandon building,15935.0,7.2,prod,abandon,building
-battle enemy,3316.0,6.4,prod,battle,enemy
-beat egg,12025.0,7.3,prod,beat,egg
-bend leg,7787.0,7.5,prod,bend,leg
-blow air,19266.0,8.4,prod,blow,air
-break bone,66577.0,8.8,prod,break,bone
-build structure,85865.0,7.6,prod,build,structure
-capture soldier,10187.0,6.7,prod,capture,soldier
-carry load,45814.0,8.2,prod,carry,load
-cast line,7730.0,5.3,prod,cast,line
-catch fish,111494.0,9.3,prod,catch,fish
-chase ball,7917.0,6.8,prod,chase,ball
-cover face,55326.0,7.7,prod,cover,face
-crack egg,7478.0,7.7,prod,crack,egg
-crash spaceship,1083.0,7.2,prod,crash,spaceship
-cross street,45592.0,9.0,prod,cross,street
-cultivate soil,3389.0,6.9,prod,cultivate,soil
-cut hair,46643.0,8.3,prod,cut,hair
-dangle leg,1386.0,5.4,prod,dangle,leg
-dent can,925.0,6.8,prod,dent,can
-diffuse light,7147.0,6.3,prod,diffuse,light
-distort image,4773.0,5.1,prod,distort,image
-drain oil,6015.0,6.9,prod,drain,oil
-drop anchor,9980.0,7.3,prod,drop,anchor
-enter house,54063.0,7.6,prod,enter,house
-erase board,3931.0,6.3,prod,erase,board
-face window,8743.0,5.4,prod,face,window
-fight enemy,23869.0,8.0,prod,fight,enemy
-float log,871.0,5.6,prod,float,log
-flood area,17316.0,6.3,prod,flood,area
-forge wheel,6475.0,7.4,prod,forge,wheel
-grasp hand,7746.0,5.7,prod,grasp,hand
-hold hand,168395.0,8.4,prod,hold,hand
-hurt child,11455.0,5.5,prod,hurt,child
-ignite flame,2986.0,7.9,prod,ignite,flame
-inflate balloon,4946.0,9.4,prod,inflate,balloon
-kick door,9371.0,6.7,prod,kick,door
-level ground,2181.0,5.3,prod,level,ground
-lift hand,29716.0,7.4,prod,lift,hand
-lock gate,11288.0,8.2,prod,lock,gate
-muzzle dog,673.0,3.7,prod,muzzle,dog
-navigate water,12267.0,6.5,prod,navigate,water
-pad cushion,1230.0,7.5,prod,pad,cushion
-pay debt,84234.0,8.3,prod,pay,debt
-pick winner,25931.0,8.3,prod,pick,winner
-pierce skin,5027.0,7.0,prod,pierce,skin
-push people,29182.0,5.5,prod,push,people
-raise hand,134259.0,8.6,prod,raise,hand
-scrape skin,1675.0,5.4,prod,scrape,skin
-share food,17706.0,5.8,prod,share,food
-shatter glass,5273.0,7.3,prod,shatter,glass
-shift position,13395.0,6.5,prod,shift,position
-silence voice,12799.0,7.6,prod,silence,voice
-skip rope,4595.0,7.7,prod,skip,rope
-slap face,5516.0,6.4,prod,slap,face
-slash throat,2869.0,8.1,prod,slash,throat
-smear blood,2322.0,6.4,prod,smear,blood
-smell perfume,2919.0,8.2,prod,smell,perfume
-soften skin,6229.0,7.3,prod,soften,skin
-sow crop,5292.0,7.9,prod,sow,crop
-spark flame,1100.0,5.7,prod,spark,flame
-spew lava,1017.0,8.7,prod,spew,lava
-spill beer,2737.0,6.9,prod,spill,beer
-spin yarn,10358.0,9.6,prod,spin,yarn
-spread butter,3074.0,5.8,prod,spread,butter
-stifle yawn,2819.0,9.5,prod,stifle,yawn
-stimulate cell,11511.0,7.4,prod,stimulate,cell
-stir mixture,9045.0,8.7,prod,stir,mixture
-strain muscle,3831.0,7.5,prod,strain,muscle
-strike target,9230.0,6.9,prod,strike,target
-taste flavor,4555.0,7.2,prod,taste,flavor
-throw rock,33109.0,8.0,prod,throw,rock
-twist ankle,5585.0,9.1,prod,twist,ankle
-unearth fossil,748.0,7.1,prod,unearth,fossil
-unleash dog,2534.0,5.4,prod,unleash,dog
-unlock car,5734.0,5.3,prod,unlock,car
-weave basket,7588.0,8.5,prod,weave,basket
-fuel car,4448.0,5.0,prod,fuel,car
-fan face,681.0,3.5,prod,fan,face
-sweeten milk,2791.0,7.5,prod,sweeten,milk
-close window,46496.0,8.3,prod,close,window
-run marathon,42041.0,7.2,prod,run,marathon
-abandon plan,19302.0,6.7,collocation,abandon,plan
-battle disease,4809.0,6.5,collocation,battle,disease
-beat odd,12754.0,7.7,collocation,beat,odd
-bend rule,14612.0,7.1,collocation,bend,rule
-blow mind,58033.0,9.4,collocation,blow,mind
-break silence,53167.0,8.5,collocation,break,silence
-build trust,79084.0,7.6,collocation,build,trust
-capture scene,10061.0,6.3,collocation,capture,scene
-carry risk,44571.0,7.5,collocation,carry,risk
-cast doubt,56812.0,9.6,collocation,cast,doubt
-catch attention,133801.0,9.3,collocation,catch,attention
-chase dream,15269.0,8.2,collocation,chase,dream
-cover expense,58741.0,7.9,collocation,cover,expense
-crack smile,7983.0,8.2,collocation,crack,smile
-crash wedding,1110.0,6.2,collocation,crash,wedding
-cross mind,46036.0,8.5,collocation,cross,mind
-cultivate talent,3854.0,6.5,collocation,cultivate,talent
-cut tax,40766.0,8.0,collocation,cut,tax
-dangle prospect,447.0,4.8,collocation,dangle,prospect
-dent confidence,1228.0,5.4,collocation,dent,confidence
-diffuse situation,4620.0,5.9,collocation,diffuse,situation
-distort truth,5871.0,6.5,collocation,distort,truth
-drain account,2706.0,5.0,collocation,drain,account
-drop hint,15554.0,7.8,collocation,drop,hint
-enter competition,35716.0,7.4,collocation,enter,competition
-erase history,5499.0,5.8,collocation,erase,history
-face fact,24588.0,6.6,collocation,face,fact
-fight cancer,23036.0,8.0,collocation,fight,cancer
-float idea,14114.0,5.9,collocation,float,idea
-flood inbox,1404.0,6.9,collocation,flood,inbox
-forge signature,6865.0,8.0,collocation,forge,signature
-grasp meaning,6358.0,7.1,collocation,grasp,meaning
-hold breath,113164.0,8.2,collocation,hold,breath
-hurt business,11397.0,5.9,collocation,hurt,business
-ignite debate,2905.0,6.6,collocation,ignite,debate
-inflate ego,2090.0,8.0,collocation,inflate,ego
-kick habit,10490.0,8.1,collocation,kick,habit
-level charge,9233.0,7.3,collocation,level,charge
-lift ban,32844.0,9.4,collocation,lift,ban
-lock eye,26037.0,7.5,collocation,lock,eye
-muzzle press,709.0,6.0,collocation,muzzle,press
-navigate challenge,12323.0,6.7,collocation,navigate,challenge
-pad resume,1157.0,6.7,collocation,pad,resume
-pay visit,96351.0,8.5,collocation,pay,visit
-pick fight,25712.0,8.4,collocation,pick,fight
-pierce darkness,1797.0,7.6,collocation,pierce,darkness
-push agenda,28530.0,8.4,collocation,push,agenda
-raise child,168326.0,8.7,collocation,raise,child
-scrape living,1286.0,5.9,collocation,scrape,living
-share joy,17250.0,6.2,collocation,share,joy
-shatter myth,2665.0,7.4,collocation,shatter,myth
-shift blame,11839.0,8.4,collocation,shift,blame
-silence gene,3129.0,7.1,collocation,silence,gene
-skip breakfast,8437.0,8.2,collocation,skip,breakfast
-slap tariff,2277.0,8.0,collocation,slap,tariff
-slash spending,4420.0,8.1,collocation,slash,spending
-smear reputation,1085.0,5.4,collocation,smear,reputation
-smell fear,2087.0,5.8,collocation,smell,fear
-soften tone,1969.0,6.3,collocation,soften,tone
-sow confusion,3504.0,7.7,collocation,sow,confusion
-spark panic,1203.0,6.1,collocation,spark,panic
-spew hate,2021.0,8.8,collocation,spew,hate
-spill secret,2935.0,6.6,collocation,spill,secret
-spin tale,8646.0,8.3,collocation,spin,tale
-spread terror,3270.0,6.0,collocation,spread,terror
-stifle dissent,2974.0,9.1,collocation,stifle,dissent
-stimulate economy,28332.0,8.8,collocation,stimulate,economy
-stir controversy,6065.0,8.6,collocation,stir,controversy
-strain relation,5144.0,7.5,collocation,strain,relation
-strike pose,13132.0,8.6,collocation,strike,pose
-taste success,4956.0,5.9,collocation,taste,success
-throw party,58685.0,8.5,collocation,throw,party
-twist word,6271.0,5.2,collocation,twist,word
-unearth talent,1111.0,5.1,collocation,unearth,talent
-unleash fury,3432.0,8.5,collocation,unleash,fury
-unlock potential,27122.0,8.5,collocation,unlock,potential
-weave story,15961.0,6.1,collocation,weave,story
-fuel passion,4510.0,7.0,collocation,fuel,passion
-fan fear,846.0,7.4,collocation,fan,fear
-sweeten deal,8402.0,6.5,collocation,sweeten,deal
-close case,27515.0,6.5,collocation,close,case
-run country,42155.0,6.7,collocation,run,country
+item,fitem,score,type,verb,noun,stimuli_grammatical,stimuli_plural
+abandon ship,16629,7.9,idiom,abandon,ship,abandon ship,abandon ship
+abandon building,15935,7.2,prod,abandon,building,abandon building,abandon buildings
+abandon plan,19302,6.7,collocation,abandon,plan,abandon the plan,abandon plans
+battle demon,4244,8,idiom,battle,demon,battle one's demons,battle demons
+battle enemy,3316,6.4,prod,battle,enemy,battle the enemy,battle enemies
+battle disease,4809,6.5,collocation,battle,disease,battle a disease,battle diseases
+beat drum,15198,8,idiom,beat,drum,beat one's drum,beat drums
+beat egg,12025,7.3,prod,beat,egg,beat an egg,beat eggs
+beat odd,12754,7.7,collocation,beat,odd,beat the odds,beat odds
+bend knee,27701,10.5,idiom,bend,knee,bend the knee,bend knees
+bend leg,7787,7.5,prod,bend,leg,bend one's leg,bend legs
+bend rule,14612,7.1,collocation,bend,rule,bend the rule,bend rules
+blow smoke,11725,8.6,idiom,blow,smoke,blow smoke,blow smoke
+blow air,19266,8.4,prod,blow,air,blow air,blow air
+blow mind,58033,9.4,collocation,blow,mind,blow one's mind,blow minds
+break leg,677376,8.7,idiom,break,leg,break a leg,break legs
+break bone,66577,8.8,prod,break,bone,break a bone,break bones
+break silence,53167,8.5,collocation,break,silence,break the silence,break silence
+build wall,77579,7.5,idiom,build,wall,build a wall,build walls
+build structure,85865,7.6,prod,build,structure,build a structure,build structures
+build trust,79084,7.6,collocation,build,trust,build trust,build trust
+capture heart,23582,7.5,idiom,capture,heart,capture a heart,capture hearts
+capture soldier,10187,6.7,prod,capture,soldier,capture a soldier,capture soldiers
+capture scene,10061,6.3,collocation,capture,scene,capture a scene,capture scenes
+carry weight,72738,8.6,idiom,carry,weight,carry the weight,carry weight
+carry load,45814,8.2,prod,carry,load,carry a load,carry loads
+carry risk,44571,7.5,collocation,carry,risk,carry a risk,carry risks
+cast net,17940,8.7,idiom,cast,net,cast a net,cast nets
+cast line,7730,5.3,prod,cast,line,cast a line,cast lines
+cast doubt,56812,9.6,collocation,cast,doubt,cast doubt,cast doubts
+catch eye,163400,9.7,idiom,catch,eye,catch one's eye,catch eye
+catch fish,111494,9.3,prod,catch,fish,catch a fish,catch fish
+catch attention,133801,9.3,collocation,catch,attention,catch one's attention,catch attention
+chase tail,7173,8.5,idiom,chase,tail,chase one's tail,chase tails
+chase ball,7917,6.8,prod,chase,ball,chase ball,chase balls
+chase dream,15269,8.2,collocation,chase,dream,chase dream,chase dreams
+close gap,134164,10,idiom,close,gap,close the gap,close gaps
+close window,46496,8.3,prod,close,window,close a window,close windows
+close case,27515,6.5,collocation,close,case,close a case,close cases
+cover ground,43449,7.4,idiom,cover,ground,cover ground,cover ground
+cover face,55326,7.7,prod,cover,face,cover one's face,cover faces
+cover expense,58741,7.9,collocation,cover,expense,cover the expense,cover expenses
+crack case,7313,5,idiom,crack,case,crack the case,crack cases
+crack egg,7478,7.7,prod,crack,egg,crack an egg,crack eggs
+crack smile,7983,8.2,collocation,crack,smile,crack a smile,crack smiles
+crash computer,2527,5.8,idiom,crash,computer,crash a computer,crash computers
+crash spaceship,1083,7.2,prod,crash,spaceship,crash a spaceship,crash spaceships
+crash wedding,1110,6.2,collocation,crash,wedding,crash a wedding,crash weddings
+cross line,189753,9.8,idiom,cross,line,cross the line,cross lines
+cross street,45592,9,prod,cross,street,cross a street,cross streets
+cross mind,46036,8.5,collocation,cross,mind,cross mind,cross minds
+cultivate garden,4189,6.9,idiom,cultivate,garden,cultivate a garden,cultivate gardens
+cultivate soil,3389,6.9,prod,cultivate,soil,cultivate the soil,cultivate soil
+cultivate talent,3854,6.5,collocation,cultivate,talent,cultivate talent,cultivate talent
+cut corner,41219,8.4,idiom,cut,corner,cut corners,cut corners
+cut hair,46643,8.3,prod,cut,hair,cut hair,cut hairs
+cut tax,40766,8,collocation,cut,tax,cut taxes,cut taxes
+dangle carrot,2648,9.5,idiom,dangle,carrot,dangle a carrot,dangle carrots
+dangle leg,1386,5.4,prod,dangle,leg,dangle a leg,dangle legs
+dangle prospect,447,4.8,collocation,dangle,prospect,dangle the prospect,dangle prospects
+dent reputation,413,4,idiom,dent,reputation,dent one's reputation,dent reputation
+dent can,925,6.8,prod,dent,can,dent a can,dent cans
+dent confidence,1228,5.4,collocation,dent,confidence,dent one's confidence,dent confidence
+diffuse tension,1814,6.6,idiom,diffuse,tension,diffuse the tension,diffuse tension
+diffuse light,7147,6.3,prod,diffuse,light,diffuse light,diffuse lights
+diffuse situation,4620,5.9,collocation,diffuse,situation,diffuse the situation,diffuse situations
+distort picture,1905,4.1,idiom,distort,picture,distort the picture,distort pictures
+distort image,4773,5.1,prod,distort,image,distort an image,distort images
+distort truth,5871,6.5,collocation,distort,truth,distort the truth,distort truth
+drain swamp,8256,9.6,idiom,drain,swamp,drain the swamp,drain swamps
+drain oil,6015,6.9,prod,drain,oil,drain the oil,drain oils
+drain account,2706,5,collocation,drain,account,drain the account,drain accounts
+drop line,13304,5.9,idiom,drop,line,drop a line,drop lines
+drop anchor,9980,7.3,prod,drop,anchor,drop the anchor,drop anchors
+drop hint,15554,7.8,collocation,drop,hint,drop a hint,drop hints
+enter market,122635,8.9,idiom,enter,market,enter the market,enter markets
+enter house,54063,7.6,prod,enter,house,enter the house,enter houses
+enter competition,35716,7.4,collocation,enter,competition,enter a competition,enter competitions
+erase trace,2860,7.5,idiom,erase,trace,erase the trace,erase traces
+erase board,3931,6.3,prod,erase,board,erase the board,erase boards
+erase history,5499,5.8,collocation,erase,history,erase history,erase history
+face obstacle,25112,7.3,idiom,face,obstacle,face an obstacle,face obstacles
+face window,8743,5.4,prod,face,window,face the window,face windows
+face fact,24588,6.6,collocation,face,fact,face the facts,face facts
+fan flame,17553,10.9,idiom,fan,flame,fan the flame,fan flames
+fan face,681,3.5,prod,fan,face,fan one's face,fan faces
+fan fear,846,7.4,collocation,fan,fear,fan one's fear,fan fears
+fight man,17711,5.9,idiom,fight,man,fight the man,fight man
+fight enemy,23869,8,prod,fight,enemy,fight the enemy,fight enemies
+fight cancer,23036,8,collocation,fight,cancer,fight cancer,fight cancers
+float boat,12267,8.4,idiom,float,boat,float one's boat,float boats
+float log,871,5.6,prod,float,log,float a log,float logs
+float idea,14114,5.9,collocation,float,idea,float an idea,float ideas
+flood market,24774,9,idiom,flood,market,flood the market,flood markets
+flood area,17316,6.3,prod,flood,area,flood the area,flood areas
+flood inbox,1404,6.9,collocation,flood,inbox,flood one's inbox,flood inboxes
+forge link,9616,6.3,idiom,forge,link,forge a link,forge links
+forge wheel,6475,7.4,prod,forge,wheel,forge a wheel,forge wheels
+forge signature,6865,8,collocation,forge,signature,forge a signature,forge signatures
+fuel fire,9418,7.3,idiom,fuel,fire,fuel the fire,fuel fires
+fuel car,4448,5,prod,fuel,car,fuel the car,fuel cars
+fuel passion,4510,7,collocation,fuel,passion,fuel one's passion,fuel passion
+grasp nettle,2108,7.9,idiom,grasp,nettle,grasp the nettle,grasp nettles
+grasp hand,7746,5.7,prod,grasp,hand,grasp one's hand,grasp hands
+grasp meaning,6358,7.1,collocation,grasp,meaning,grasp the meaning,grasp meanings
+hold key,59256,7.2,idiom,hold,key,hold the key,hold keys
+hold hand,168395,8.4,prod,hold,hand,hold one's hand,hold hands
+hold breath,113164,8.2,collocation,hold,breath,hold one's breath,hold breath
+hurt eye,8773,5.9,idiom,hurt,eye,hurt the eyes,hurt eyes
+hurt child,11455,5.5,prod,hurt,child,hurt a child,hurt children
+hurt business,11397,5.9,collocation,hurt,business,hurt a business,hurt business
+ignite fire,9306,7.5,idiom,ignite,fire,ignite a fire,ignite fires
+ignite flame,2986,7.9,prod,ignite,flame,ignite a flame,ignite flames
+ignite debate,2905,6.6,collocation,ignite,debate,ignite a debate,ignite debates
+inflate bubble,2333,7.8,idiom,inflate,bubble,inflate the bubble,inflate bubbles
+inflate balloon,4946,9.4,prod,inflate,balloon,inflate a balloon,inflate balloons
+inflate ego,2090,8,collocation,inflate,ego,inflate one's ego,inflate egos
+kick bucket,6257,8.2,idiom,kick,bucket,kick the bucket,kick buckets
+kick door,9371,6.7,prod,kick,door,kick the door,kick doors
+kick habit,10490,8.1,collocation,kick,habit,kick the habit,kick habits
+level field,4459,5.9,idiom,level,field,level the field,level fields
+level ground,2181,5.3,prod,level,ground,level the ground,level grounds
+level charge,9233,7.3,collocation,level,charge,level a charge,level charges
+lift finger,20457,8.2,idiom,lift,finger,lift a finger,lift fingers
+lift hand,29716,7.4,prod,lift,hand,lift a hand,lift hands
+lift ban,32844,9.4,collocation,lift,ban,lift the ban,lift bans
+lock horn,10804,8.4,idiom,lock,horn,lock horns,lock horns
+lock gate,11288,8.2,prod,lock,gate,lock the gate,lock gates
+lock eye,26037,7.5,collocation,lock,eye,lock eyes,lock eyes
+muzzle ox,602,9,idiom,muzzle,ox,muzzle the ox,muzzle oxen
+muzzle dog,673,3.7,prod,muzzle,dog,muzzle the dog,muzzle dogs
+muzzle press,709,6,collocation,muzzle,press,muzzle the press,muzzle press
+navigate world,18410,6.9,idiom,navigate,world,navigate the world,navigate worlds
+navigate water,12267,6.5,prod,navigate,water,navigate waters,navigate waters
+navigate challenge,12323,6.7,collocation,navigate,challenge,navigate a challenge,navigate challenges
+pad pocket,2019,7.3,idiom,pad,pocket,pad one's pocket,pad pockets
+pad cushion,1230,7.5,prod,pad,cushion,pad a cushion,pad cushions
+pad resume,1157,6.7,collocation,pad,resume,pad a resume,pad resumes
+pay price,278026,9.7,idiom,pay,price,pay the price,pay prices
+pay debt,84234,8.3,prod,pay,debt,pay the debt,pay debts
+pay visit,96351,8.5,collocation,pay,visit,pay a visit,pay visits
+pick brain,13281,7.5,idiom,pick,brain,pick one's brain,pick brains
+pick winner,25931,8.3,prod,pick,winner,pick a winner,pick winners
+pick fight,25712,8.4,collocation,pick,fight,pick a fight,pick fights
+pierce veil,4674,9.5,idiom,pierce,veil,pierce the veil,pierce veils
+pierce skin,5027,7,prod,pierce,skin,pierce one's skin,pierce skins
+pierce darkness,1797,7.6,collocation,pierce,darkness,pierce darkness,pierce darkness
+push button,90119,9.6,idiom,push,button,push the button,push buttons
+push people,29182,5.5,prod,push,people,push people,push people
+push agenda,28530,8.4,collocation,push,agenda,push an agenda,push agendas
+raise eyebrow,126474,9.3,idiom,raise,eyebrow,raise an eyebrow,raise eyebrows
+raise hand,134259,8.6,prod,raise,hand,raise a hand,raise hands
+raise child,168326,8.7,collocation,raise,child,raise a child,raise children
+run race,65736,7.6,idiom,run,race,run a race,run races
+run marathon,42041,7.2,prod,run,marathon,run a marathon,run marathons
+run country,42155,6.7,collocation,run,country,run a country,run countries
+scrape bottom,5734,8.7,idiom,scrape,bottom,scrape the bottom,scrape bottoms
+scrape skin,1675,5.4,prod,scrape,skin,scrape the skin,scrape skin
+scrape living,1286,5.9,collocation,scrape,living,scrape a living,scrape livings
+share bed,15565,6,idiom,share,bed,share a bed,share beds
+share food,17706,5.8,prod,share,food,share food,share food
+share joy,17250,6.2,collocation,share,joy,share joy,share joy
+shatter record,9028,6.3,idiom,shatter,record,shatter the record,shatter records
+shatter glass,5273,7.3,prod,shatter,glass,shatter glass,shatter glass
+shatter myth,2665,7.4,collocation,shatter,myth,shatter the myth,shatter myths
+shift burden,14511,8.2,idiom,shift,burden,shift the burden,shift burdens
+shift position,13395,6.5,prod,shift,position,shift one's position,shift positions
+shift blame,11839,8.4,collocation,shift,blame,shift the blame,shift blame
+silence critic,9062,9.6,idiom,silence,critic,silence the critics,silence critics
+silence voice,12799,7.6,prod,silence,voice,silence one's voice,silence voices
+silence gene,3129,7.1,collocation,silence,gene,silence a gene,silence genes
+skip town,4297,6.3,idiom,skip,town,skip town,skip town
+skip rope,4595,7.7,prod,skip,rope,skip rope,skip ropes
+skip breakfast,8437,8.2,collocation,skip,breakfast,skip breakfast,skip breakfast
+slap label,2004,6.3,idiom,slap,label,slap a label,slap labels
+slap face,5516,6.4,prod,slap,face,slap one's  face,slap faces
+slap tariff,2277,8,collocation,slap,tariff,slap a tariff,slap tariffs
+slash bill,1279,4.4,idiom,slash,bill,slash the bill,slash bills
+slash throat,2869,8.1,prod,slash,throat,slash one's throat,slash throats
+slash spending,4420,8.1,collocation,slash,spending,slash spending,slash spending
+smear opponent,933,5.6,idiom,smear,opponent,smear an opponent,smear opponents
+smear blood,2322,6.4,prod,smear,blood,smear blood,smear blood
+smear reputation,1085,5.4,collocation,smear,reputation,smear one's reputation,smear reputation
+smell rose,7425,9.4,idiom,smell,rose,smell the roses,smell roses
+smell perfume,2919,8.2,prod,smell,perfume,smell the perfume,smell perfumes
+smell fear,2087,5.8,collocation,smell,fear,smell fear,smell fears
+soften blow,10244,9.4,idiom,soften,blow,soften the blow,soften blows
+soften skin,6229,7.3,prod,soften,skin,soften skin,soften skin
+soften tone,1969,6.3,collocation,soften,tone,soften one's tone,soften tones
+sow seed,57012,10.9,idiom,sow,seed,sow the seed,sow seeds
+sow crop,5292,7.9,prod,sow,crop,sow the crop,sow crops
+sow confusion,3504,7.7,collocation,sow,confusion,sow confusion,sow confusions
+spark fire,5462,6.5,idiom,spark,fire,spark a fire,spark fires
+spark flame,1100,5.7,prod,spark,flame,spark a flame,spark flames
+spark panic,1203,6.1,collocation,spark,panic,spark panic,spark panics
+spew venom,2067,9.4,idiom,spew,venom,spew venom,spew venom
+spew lava,1017,8.7,prod,spew,lava,spew lava,spew lava
+spew hate,2021,8.8,collocation,spew,hate,spew hate,spew hate
+spill bean,18162,10.4,idiom,spill,bean,spill the beans,spill beans
+spill beer,2737,6.9,prod,spill,beer,spill the beer,spill beers
+spill secret,2935,6.6,collocation,spill,secret,spill the secret,spill secrets
+spin wheel,25453,9.5,idiom,spin,wheel,spin one's wheels,spin wheels
+spin yarn,10358,9.6,prod,spin,yarn,spin yarn,spin yarn
+spin tale,8646,8.3,collocation,spin,tale,spin a tale,spin tales
+spread seed,7216,6.7,idiom,spread,seed,spread the seed,spread seeds
+spread butter,3074,5.8,prod,spread,butter,spread butter,spread butter
+spread terror,3270,6,collocation,spread,terror,spread terror,spread terror
+stifle voice,1886,4.9,idiom,stifle,voice,stifle one's voice,stifle voices
+stifle yawn,2819,9.5,prod,stifle,yawn,stifle a yawn,stifle yawns
+stifle dissent,2974,9.1,collocation,stifle,dissent,stifle dissent,stifle dissent
+stimulate brain,6316,7.3,idiom,stimulate,brain,stimulate the brain,stimulate brains
+stimulate cell,11511,7.4,prod,stimulate,cell,stimulate a cell,stimulate cells
+stimulate economy,28332,8.8,collocation,stimulate,economy,stimulate the economy,stimulate economies
+stir pot,13006,9.4,idiom,stir,pot,stir the pot,stir pots
+stir mixture,9045,8.7,prod,stir,mixture,stir a mixture,stir mixtures
+stir controversy,6065,8.6,collocation,stir,controversy,stir controversy,stir controversies
+strain ear,2727,7.2,idiom,strain,ear,strain one's ear,strain ears
+strain muscle,3831,7.5,prod,strain,muscle,strain a muscle,strain muscles
+strain relation,5144,7.5,collocation,strain,relation,strain relations,strain relations
+strike gold,11563,7.8,idiom,strike,gold,strike gold,strike gold
+strike target,9230,6.9,prod,strike,target,strike a target,strike targets
+strike pose,13132,8.6,collocation,strike,pose,strike a pose,strike poses
+sweeten pot,3461,8,idiom,sweeten,pot,sweeten the pot,sweeten pots
+sweeten milk,2791,7.5,prod,sweeten,milk,sweeten the milk,sweeten milk
+sweeten deal,8402,6.5,collocation,sweeten,deal,sweeten the deal,sweeten deals
+taste blood,5479,7,idiom,taste,blood,taste blood,taste blood
+taste flavor,4555,7.2,prod,taste,flavor,taste the flavor,taste flavors
+taste success,4956,5.9,collocation,taste,success,taste success,taste success
+throw money,43659,7.3,idiom,throw,money,throw money,throw money
+throw rock,33109,8,prod,throw,rock,throw a rock,throw rocks
+throw party,58685,8.5,collocation,throw,party,throw a party,throw parties
+twist arm,11204,7.6,idiom,twist,arm,twist one's arm,twist arms
+twist ankle,5585,9.1,prod,twist,ankle,twist an ankle,twist ankles
+twist word,6271,5.2,collocation,twist,word,twist one's word,twist words
+unearth treasure,1465,7.1,idiom,unearth,treasure,unearth treasure,unearth treasures
+unearth fossil,748,7.1,prod,unearth,fossil,unearth a fossil,unearth fossils
+unearth talent,1111,5.1,collocation,unearth,talent,unearth talent,unearth talent
+unleash hell,2366,6.8,idiom,unleash,hell,unleash hell,unleash hells
+unleash dog,2534,5.4,prod,unleash,dog,unleash a dog,unleash dogs
+unleash fury,3432,8.5,collocation,unleash,fury,unleash fury,unleash fury
+unlock door,46638,9,idiom,unlock,door,unlock the door,unlock doors
+unlock car,5734,5.3,prod,unlock,car,unlock the car,unlock cars
+unlock potential,27122,8.5,collocation,unlock,potential,unlock potential,unlock potential
+weave web,6389,7.9,idiom,weave,web,weave a web,weave webs
+weave basket,7588,8.5,prod,weave,basket,weave a basket,weave baskets
+weave story,15961,6.1,collocation,weave,story,weave a story,weave stories

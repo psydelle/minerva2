@@ -16,23 +16,28 @@ plt.rcParams['font.size'] = 12
 sns.set_theme(style='whitegrid', palette='flare')
 
 # Read the CSV file into a pandas DataFrame
-stimuli = pd.read_csv('data\stimuli_idioms.csv')
+stimuli = pd.read_csv('data\stimuli_idioms_clean.csv')
+print("Stimuli data: ")
 print(stimuli.head())
 
-minerva = pd.read_csv('results\combo_results-stimuli_idioms_clean-99p-last_1-kwics-concat-m2k_0.95-m2mi_300-sweep.csv')
+minerva = pd.read_csv('results\\results-stimuli_idioms_clean-300p-last_1-kwics-concat-all-fp_0.0-0.8-m2k_0.95-0.995-m2mi_300-full-sweep.csv')
+print("Minerva data: ")
 print(minerva.head())
 
 # describe the data
+print("Stimuli data description: ")
 print(stimuli.describe())
+print("Minerva data description: ")
 print(minerva.describe())
 
 # Check for missing values
-print(stimuli.isnull().sum())
-print(minerva.isnull().sum())
+print("Missing values in stimuli:", stimuli.isnull().sum())
+print("Missing values in minerva:", minerva.isnull().sum())
 
 # Check for duplicates
-print(stimuli.duplicated().sum())
-print(minerva.duplicated().sum())
+print("Number of duplicates in stimuli: ", stimuli.duplicated().sum())
+print("Number of duplicates in minerva: ", minerva.duplicated().sum())
+
 
 #make a list of unique items in minerva['embedding_model']
 models = minerva['embedding_model'].unique()
@@ -46,32 +51,25 @@ print(minerva_k)
 print(minerva[~minerva['item'].isin(stimuli['item'])])
 
 # for each item not in both dataframes, add an s to the end of the character string in minerva['item']
-minerva['item'] = minerva['item'].apply(lambda x: x + 's' if x not in stimuli['item'].values else x)
+# minerva['item'] = minerva['item'].apply(lambda x: x + 's' if x not in stimuli['item'].values else x)
 
 # find items that are not in both dataframes
 print(minerva[~minerva['item'].isin(stimuli['item'])])
 
 # merge the two dataframes on 'item'
-
 minerva = minerva.merge(stimuli, on='item', how='left')
-
 print(minerva.head())
 
-# split df by minerva_k
 
-# for i in minerva_k:
-#     minerva_k_subset = minerva[minerva['minerva_k'] == i]
-#     print(minerva_k_subset.head())
-#     # write the updated df to a new csv
-#     minerva_k_subset.to_csv(f'results\idioms_minerva_k_{i}.csv', index=False)
-
-# for item in minerva['item']:
-#     print(item)
-#     if item in stimuli['item'].values:
-#         minerva.loc[minerva['item'] == item, 'type'] = stimuli.loc[stimuli['item'] == item, 'type'].values[0]
-#         minerva.loc[minerva['item'] == item, 'fitem'] = stimuli.loc[stimuli['item'] == item, 'fitem'].values[0]
-#         minerva.loc[minerva['item'] == item, 'score'] = stimuli.loc[stimuli['item'] == item, 'score'].values[0]
-#         print(minerva.loc[minerva['item'] == item, 'type'])
+# split the dataset by embedding model and write to a new csv
+for model in models:
+    minerva_model = minerva[minerva['embedding_model'] == model]
+    print("Model: ", model)
+    # write the updated df to a new csv
+    minerva_model.to_csv(f'results\minerva_results_{model}.csv', index=False)
+    print("Done with ", model, "! Check the results folder for the CSV file.")
 
 # write the updated df to a new csv
-minerva.to_csv('results\minerva_full_results.csv', index=False)
+print("Writing the updated dataframe to a new CSV file...")
+minerva.to_csv('results\minerva_results_full.csv', index=False)
+print("Done! Check the results folder for the updated CSV file.")
