@@ -14,6 +14,8 @@ python src/prep_dataset.py
 python src/find_kwics_for_csv.py -f data/stimuli_idioms_clean.csv -o data/stimuli_idioms_kwics.json
 ```
 
+4. For MrBERT, download the trained MrBert model from [here](https://drive.google.com/drive/folders/1iWrftTDH2If6UO9M-hmc13EwYP1FVfSJ) and place it in `src/MrBERT/model` (`config.json` and `pytorch_model.bin` should be top-level in `src/MrBERT/model`)
+
 ## Running experiments
 ```bash
 python run_all_experiments...
