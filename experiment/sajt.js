@@ -17,6 +17,7 @@ var jsPsych = initJsPsych({
   exclusions: {
     min_width: 800,
     min_height: 600
+
   },
   // on_trial_finish: function(data){
   //   var trial_response = JSON.stringify(data.response)
@@ -46,9 +47,19 @@ if (window.mobileAndTabletCheck()) {
 };
 
 // write a function to call fold and prolific id from the url
+urlParams = new URL(window.location.href).searchParams;
 
-function getFold() {
-  let fold_idx = Number(jsPsych.data.getURLVariable("fold"));
+function getFolda() {
+  let fold_idx = Number(urlParams.get("folda"));
+  if (fold_idx == null) {
+    console.error("fold not specified in URL");
+    fold_idx = -1;
+  }
+  return fold_idx;
+}
+
+function getFoldb() {
+  let fold_idx = Number(urlParams.get("foldb"));
   if (fold_idx == null) {
     console.error("fold not specified in URL");
     fold_idx = -1;
@@ -57,26 +68,26 @@ function getFold() {
 }
 
 function getProlificID() {
-  let prolific_id = jsPsych.data.getURLVariable("PROLIFIC_PID");
+  let prolific_id = urlParams.get("PROLIFIC_PID");
   // let prolific_id = `drnlppilot${jsPsych.randomization.randomID(10)}`;
   return prolific_id;
 }
 
 function getProlificStudyID() {
-  return jsPsych.data.getURLVariable("PROLIFIC_STUDY_ID");
+  return urlParams.get("PROLIFIC_STUDY_ID");
 }
 
 console.log(STIMULI);
+console.log(getFolda(), getFoldb(), getProlificID());
 // let fold_idx = getFold();
 //let getProlificID = jsPsych.data.getURLVariable("PROLIFIC_PID")
-console.log(getFold(), getProlificID());
 
 // write a function to mark a trial as real or not that i can call in on_finish
 
 function ajtOnFinish(data) {
-   data.dataType = "ajtTrial";
-   data.condition = jsPsych.timelineVariable("type");
-   data.goldResponse = jsPsych.timelineVariable("correct_ajt_response");
+  data.dataType = "ajtTrial";
+  data.condition = jsPsych.timelineVariable("type");
+  data.goldResponse = jsPsych.timelineVariable("correct_ajt_response");
 };
 
 function markTrialAsFake(data) {
@@ -88,46 +99,56 @@ function markTrialAsInfo(data) {
 }
 
 
-jsPsych.randomization.setSeed(getFold())
 
 // Filter the stimuli array by fold to get the stimuli for the current participant
 
-let filtered = STIMULI.filter(obj => obj.fold === getFold());
+let filtereda = STIMULI.filter(obj => obj.fold === getFolda());
+let filteredb = STIMULI.filter(obj => obj.fold === getFoldb());
 
-console.log("stimuli set for fold", filtered);
+console.log("stimuli set for fold A", filtereda);
+console.log("stimuli set for fold B", filteredb);
 
-if (filtered.length != 20) {
-  console.error("not 20 items in set!"); 
+if (filtereda.length != 41) {
+  console.error("not 41 items in fold A!");
 }
 
-// check if there are 10 collocations and 10 productive combinations in the set
-
-if (filtered.filter(obj => obj.type === "collocation").length != 10) {
-  console.error("not 10 collocations in set!"); 
+if (filteredb.length != 41) {
+  console.error("not 41 items in fold B!");
 }
 
-if (filtered.filter(obj => obj.type === "productive").length != 10) {
-  console.error("not 10 productive combinations in set!"); 
+
+// combine the filtered stimuli with the baselines
+
+let SUB_STIMULI_A = filtereda.concat(BASELINES_A);
+let SUB_STIMULI_B = filteredb.concat(BASELINES_B);
+
+if (SUB_STIMULI_A.length != 82) {
+  console.error("not 82 items in participant set!");
 }
 
-let SUB_STIMULI = filtered.concat(BASELINES);
-
-if (SUB_STIMULI.length != 40) {
-  console.error("not 40 items in participant set!"); 
+if (SUB_STIMULI_B.length != 82) {
+  console.error("not 82 items in participant set!");
 }
 
-jsPsych.randomization.setSeed(getProlificID()) 
+jsPsych.randomization.setSeed(getProlificID())
 
-SUB_STIMULI = jsPsych.randomization.shuffle(SUB_STIMULI)
+SUB_STIMULI_A = jsPsych.randomization.shuffle(SUB_STIMULI_A)
+SUB_STIMULI_B = jsPsych.randomization.shuffle(SUB_STIMULI_B)
 
 // ensure first stimulus is productive
-while (SUB_STIMULI[0].type !== "productive") {
-  SUB_STIMULI = jsPsych.randomization.shuffle(SUB_STIMULI)
+while (SUB_STIMULI_A[0].type !== "prod") {
+  SUB_STIMULI_A = jsPsych.randomization.shuffle(SUB_STIMULI_A)
 }
 
-console.log(SUB_STIMULI);
+while (SUB_STIMULI_B[0].type !== "prod") {
+  SUB_STIMULI_B = jsPsych.randomization.shuffle(SUB_STIMULI_B)
+}
 
-let literalnessStim = jsPsych.randomization.shuffle(filtered);
+console.log(SUB_STIMULI_A);
+console.log(SUB_STIMULI_B);
+
+// shuffle the stimuli for the literalness task
+// let literalnessStim = jsPsych.randomization.shuffle(filtered);
 
 /*exclude mobile browsers*/
 
@@ -297,7 +318,7 @@ var ajt_practice_trial = {
   trial_duration: 8000,
   feedback_duration: 3000,
   correct_text: "<h1 class='prompt'> &#128515 </h1>\
-  <h3 class='prompt' style='color: green;'> That's right! </h3>",
+  <h3 class='prompt' style='color: green;'> Yay! </h3>",
   incorrect_text: "<h1 class='prompt''> &#128534 </h1>\
   <h3 class='prompt' style='color: red;'> Hmmm... </h3>",
   prompt:
@@ -306,7 +327,7 @@ var ajt_practice_trial = {
   stimulus: function () {
     var stim =
       '<p id="stimuli"">' +
-      jsPsych.timelineVariable("item") +
+      jsPsych.timelineVariable("stimuli_grammatical") +
       "</p>";
     return stim;
   },
@@ -316,17 +337,39 @@ var ajt_practice_trial = {
 var ajt_test_trial = {
   type: jsPsychHtmlKeyboardResponse,
   prompt:
-    `<p id="prompt"><em>Would this word combination be used by a native speaker of English? <br> Press <b>Y</b> for yes or <b>N</b> for no. </em></p>`,
+    `<p id="prompt"><em>Would this word combination be used by a native speaker of English? <br> Press <b>Y</b> for yes or <b>N</b> for no.</em></p>`,
   choices: ["y", "n"],
   trial_duration: 8000,
   on_finish: ajtOnFinish,
   stimulus: function () {
     var stim =
       '<p id="stimuli">' +
-      jsPsych.timelineVariable("verb") + " " + jsPsych.timelineVariable("noun_pl") +
+      jsPsych.timelineVariable("stimuli_grammatical") +
       "</p>";
     return stim;
   },
+};
+
+
+
+var break_trial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: "<h1 class='prompt''> &#128517 </h1>\ <p style='font-size:70px; font-weight:bolder;'> You're halfway there! Time for a short 10-second break.</p>",
+  trial_duration: 10000,
+  response_ends_trial: false,
+  on_finish: markTrialAsFake,
+};
+
+
+var break_end = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: "<h2>Okay, back to business. <br> Fingers at the ready! </h2>\
+  <img src='https://www.sydsphdresearch.ppls.ed.ac.uk/ProjectLiteral/experiment/yn-keys.gif' alt='keys' style='width:300px;height:300px;'>\
+  <p style='text-align:center'> Keep your <b>index fingers</b> over the <b>Y</b> (<em>yes</em>) and <b>N</b> (<em>no</em>) keys.\
+   Please refrain from doing this task one-handedly.",
+  trial_duration: 8500,
+  response_ends_trial: false,
+  on_finish: markTrialAsFake,
 };
 
 // Stitch the two together - use the items variable for the timeline_variables
@@ -336,10 +379,16 @@ var ajt_practice = {
   randomize_order: true,
 };
 
-var ajt_test = {
+var ajt_test_a = {
   timeline: [fixation, ajt_test_trial],
-  timeline_variables: SUB_STIMULI,
-  randomize_order: false,
+  timeline_variables: SUB_STIMULI_A,
+  randomize_order: true,
+};
+
+var ajt_test_b = {
+  timeline: [fixation, ajt_test_trial],
+  timeline_variables: SUB_STIMULI_B,
+  randomize_order: true,
 };
 
 
@@ -349,7 +398,7 @@ var ajt_test = {
 /*** Instruction trials *******************************************************/
 /******************************************************************************/
 
-// jspsych make the prompt appear above the stimulus
+// jspsych makes the prompt appear above the stimulus
 
 // declare the block.
 
@@ -372,7 +421,7 @@ var welcome = {
     There will be instructions &#128064 and practice with feedback. Please pay close attention to them.\
     Before you begin, please ensure that you are in a quiet space where you are unlikely to be distracted or interrupted.\
     <mark>Keep in mind that there are no right or wrong answers.</mark> We are only interested in your intuitions as a native English speaker.\
-    So, relax and have fun. You should be done in about 5 minutes.</p>\
+    So, relax and have fun. You should be done in about 5 to 7 minutes.</p>\
     <h3>Click the button below to proceed.</h3>",
   choices: ["Click to proceed"],
   button_html: '<button>%choice%</button>',
@@ -406,7 +455,7 @@ var ajt_begin_practice = {
   <p style='text-align:center'> Keep your <b>index fingers</b> over the <b>Y</b> (<em>yes</em>) and <b>N</b> (<em>no</em>) keys.\
    Please refrain from doing this task one-handedly.\
   If you don't respond within 8 seconds you will automatically be moved on to the next combination.</p>\
-  <h4> Remember, we are interested in your first impressions!</h4>",
+  <h4> Remember, we are interested in your first impressions! So please pay attention and answer quickly.</h4>",
   choices: ["Enter"],
   prompt: ["<h3 style='text-align:center'> <br> Press 'Enter' to begin.</h3>"],
   on_finish: markTrialAsFake,
@@ -441,8 +490,7 @@ var ajt_end = {
   type: jsPsychHtmlButtonResponse,
   stimulus:
     "<img src='https://www.sydsphdresearch.ppls.ed.ac.uk/ProjectLiteral/experiment/task-complete.gif' alt='party popper gif' height='300px' width='300px'>\
-  <br><h2>Great job! You've completed Task 1.</h2>\
-  <h4>Now let's move on to the next task.</h4>",
+  <br><h2>Great job! You're done.</h2>",
   choices: ["Click to proceed"],
   button_html: '<button>%choice%</button>',
   on_finish: markTrialAsFake,
@@ -457,7 +505,7 @@ var save_data_trial = {
     var data_in = jsPsych.data.get();
     console.log(data_in);
     // var data_to_send = { getProlificID: jsPsych.data.getURLVariable("PROLIFIC_PID"), filedata: data_in };
-    var data_to_send = { prolific_study_id: getProlificStudyID(), prolific_id: getProlificID(), fold: getFold(), filedata: data_in };
+    var data_to_send = { prolific_study_id: getProlificStudyID(), prolific_id: getProlificID(), folda: getFolda(), foldb: getFoldb(), filedata: data_in };
     let response = fetch(url, {
       method: 'POST',
       body: JSON.stringify(data_to_send),
@@ -499,16 +547,20 @@ var final_screen = {
 
 var full_timeline = [
   browserCheckTrial,
-  participant_information,
-  welcome,
-  ajt_instructions,
-  ajt_begin_practice,
+  // participant_information,
+  // welcome,
+  // ajt_instructions,
+  // ajt_begin_practice,
+  // countdown,
+  // ajt_practice,
+  // ajt_end_practice,
+  // ajt_begin_test,
+  // countdown,
+  ajt_test_a,
+  break_trial,
+  break_end,
   countdown,
-  ajt_practice,
-  ajt_end_practice,
-  ajt_begin_test,
-  countdown,
-  ajt_test,
+  ajt_test_b,
   ajt_end,
   sociodemo1,
   sociodemo2,
@@ -522,4 +574,3 @@ Call jsPsych.run to run timeline.
 */
 
 jsPsych.run(full_timeline);
-
