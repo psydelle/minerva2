@@ -81,47 +81,60 @@ class Minerva2(object):
     This is a class for the Minerva2 model
     """
 
-    def __init__(self, F=None, M=None, Mat=None):
-        if Mat is not None:
-            self.Mat = Mat
-            self.M = Mat.shape[0]
-            self.F = Mat.shape[1]
+    def __init__(self, Mat, norm_activation=False):
+        self.Mat = Mat
+        self.M = Mat.shape[0]
+        self.F = Mat.shape[1]
+        self.norm_activation = norm_activation
+
+    def activate(self, probe, tau=1.0, _sims_memo=None):
+        if _sims_memo is None:
+            similarity = torch.cosine_similarity(probe, self.Mat, dim=1)
         else:
-            assert F is not None, "You need to specify the number of features"
+            similarity = _sims_memo
 
-    def activate(self, probe, tau=1.0):
-        similarity = torch.cosine_similarity(probe, self.Mat, dim=1)
-        activation = torch.abs(similarity**tau) * torch.sign(
-            similarity
-        )  # make sure we preserve the signs
-        return activation
+        # exponentiate and make sure we preserve the signs
+        activation = torch.abs(similarity**tau) * torch.sign(similarity)
+        if self.norm_activation:
+            activation = activation / torch.norm(activation, p=1)
+        return activation, similarity
 
-    def echo(self, probe, tau=1.0):
-        activation = self.activate(probe, tau)
-        return torch.tensordot(activation, self.Mat, dims=([0], [0]))
+    def echo(self, probe, tau=1.0, _sims_memo=None):
+        activations, _sims_memo = self.activate(probe, tau, _sims_memo=_sims_memo)
+        return (
+            torch.tensordot(activations, self.Mat, dims=([0], [0])),
+            activations,
+            _sims_memo,
+        )
 
-    def recognize(
-        self, probe, tau=1.0, k=0.955, maxiter=450
-    ):  # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
-        echo = self.echo(probe, tau)
-        big = torch.cosine_similarity(echo, probe, dim=0)
-        # similarity = torch.cosine_similarity(echo, self.Mat, dim=1)
-        # big = torch.max(similarity)
-        if big < k and tau < maxiter:
-            big, tau = self.recognize(probe, tau + 1, k, maxiter)
-        return big, tau
+    def recognize(self, probe, k=0.955, maxiter=450, _sims_memo=None):
+        # maxiter is set to 450 because Souza and Chalmers (2021) set their timeout to 4500ms
+        activations_0 = None
+
+        for tau in range(1, maxiter):
+            echo, activations_tau, _sims_memo = self.echo(
+                probe, tau, _sims_memo=_sims_memo
+            )
+            if activations_0 is None:
+                activations_0 = activations_tau
+
+            probe_echo_sim = torch.cosine_similarity(echo, probe, dim=0)
+            if probe_echo_sim >= k:
+                break
+
+        return probe_echo_sim, tau, activations_0, activations_tau
+
 
 class AttentionMinerva2(Minerva2):
-    def __init__(self, F=None, M=None, Mat=None):
-        super().__init__(F=F, M=M, Mat=Mat)
+    def __init__(self, Mat=None):
+        super().__init__(Mat=Mat)
 
     def activate(self, probe, tau=1.0):
-        similarity = (probe @ self.Mat.T) / np.sqrt(
-            probe.shape[0]
-        )
-        sharpened_sim = torch.abs(similarity**tau) * torch.sign(
-            similarity
-        )
+        similarity = (probe @ self.Mat.T) / np.sqrt(probe.shape[0])
+        # sharpened_sim = torch.abs(similarity**tau) * torch.sign(
+        #     similarity
+        # )
+        sharpened_sim = similarity
         # activation = torch.softmax(sharpened_sim, dim=0)
         activation = sharpened_sim / (torch.sum(sharpened_sim) + 1e-6)
         return activation
@@ -209,11 +222,150 @@ def get_embeddings(
 ##-----------------------------------------------------------------------------##
 
 
+def run_iteration(
+    p,
+    s,
+    device,
+    colloc_embeddings,
+    norm_freq_en,
+    do_equal_frequency,
+    M,
+    embed_dim,
+    forget_prob,
+    minerva_k,
+    minerva_max_iter,
+):
+    # print(f"\nSeed {s}\n")
+    random_generator = random.Random(s)
+    torch_generator = torch.Generator().manual_seed(s)
+
+    # stack the embeddings into a tensor
+    colloc_bert_embeddings = torch.stack(
+        [c["vec"] for c in colloc_embeddings.values()]
+    ).to("cpu")
+
+    # normalize the embeddings to standard normal
+    # TODO: why does normalizing per dimension produce drastically different results?
+    # specifically, if norm by dim here and applying non-normed noise
+    colloc_bert_embeddings = (
+        colloc_bert_embeddings - colloc_bert_embeddings.mean()
+    ) / colloc_bert_embeddings.std()
+
+    # sample from the collocations to make a M x 768 matrix
+    n_items = len(colloc_bert_embeddings)
+    sample_k = M - n_items
+
+    if do_equal_frequency:
+        frequencies = torch.ones(n_items).float()
+    else:
+        frequencies = torch.tensor(norm_freq_en).float()
+
+    sampled_item_indices = torch.cat(
+        (
+            torch.arange(n_items),
+            torch.multinomial(
+                frequencies, sample_k, replacement=True, generator=torch_generator
+            ),
+        )
+    )
+    matrix = colloc_bert_embeddings[sampled_item_indices]
+
+    assert matrix.size() == (M, embed_dim), "Huh?"
+
+    # TODO: document noise procedure
+    # again, why is noising per dimension so different?
+    noise_mean = torch.tensor([0.0]).expand(M, embed_dim)
+    # tie noise to the std of the matrix
+    noise_std = matrix.std().expand(M, embed_dim) / 2
+
+    print(f"Noising with std {noise_std.mean()}")
+    noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator)
+    noise_mask = torch.rand((M, embed_dim), generator=torch_generator)
+    noisy_mem = torch.where(
+        noise_mask < forget_prob, matrix + noise_gaussian, matrix
+    )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
+    # noisy_mem = torch.where(
+    #     noise_mask < L, 0.0, matrix
+    # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
+    noisy_mem = noisy_mem.to(device)
+
+    minz = Minerva2(
+        Mat=noisy_mem,
+        norm_activation=True,
+    )  # initialize the Minerva2 model with the noisy memory matrix
+    # minz = AttentionMinerva2(
+    #     Mat=noisy_mem
+    # )  # initialize the Minerva2 model with the noisy memory matrix
+
+    # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
+
+    output = []  # initialize an empty list to store the output
+
+    if os.environ.get("MINERVA_DEBUG"):
+        DEBUG_N = 10
+        logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
+        items = list(colloc_embeddings.items())[:DEBUG_N]
+    else:
+        items = colloc_embeddings.items()
+
+    for item, data in items:
+        vec = data["vec"]
+        act, rt, activations_0, activations_tau = minz.recognize(
+            vec.to(device), k=minerva_k, maxiter=minerva_max_iter
+        )
+
+        def agg_activations_by_item(activations):
+            agg_activations = torch.zeros(n_items, device=device)
+            for i in range(n_items):
+                where = sampled_item_indices == i
+                agg_activations[i] = activations[where].mean()
+            return agg_activations
+
+        activations_0.detach().cpu(),
+        activations_tau.detach().cpu(),
+
+        output.append(
+            [
+                item,
+                act.detach().cpu().item(),
+                rt,
+                data["n_kwics"],
+                agg_activations_by_item(activations_0).detach().cpu().tolist(),
+                agg_activations_by_item(activations_tau).detach().cpu().tolist(),
+            ]
+        )
+        print(
+            f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1][:3] if output else ''}"
+        )
+
+    print(
+        f" Done with Participant {p+1} | Seed {s}  \n----------------------------------",
+        flush=True,
+    )
+    results_df = pd.DataFrame(
+        data=output,
+        columns=[
+            "item",
+            "act",
+            "rt",
+            "n_kwics",
+            "activations_0",
+            "activations_tau",
+        ],
+    )
+    # results_df["mode"] = "l1"
+    results_df["id"] = s
+    results_df["participant"] = p + 1
+
+    return results_df
+
+
 def run_experiment(
     dataset_to_use: str,
     kwics_file_to_use: str,
     num_participants: int,
     embedding_model="sbert",
+    forget_prob=0.6,
     do_noise_embeddings=False,
     do_equal_frequency=False,
     do_log_freq=False,
@@ -223,8 +375,8 @@ def run_experiment(
     do_concat_tokens=False,
     avg_last_n_layers=4,
     label=None,
-    forget_prob=0.6,
     dry_run_dump=False,
+    return_activations=False,
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
@@ -281,25 +433,15 @@ def run_experiment(
                 torch.randn(embed_dim) * noise_stds + noise_means
             )
 
-    # stack the embeddings into a tensor
-    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc_embeddings.values()]).to("cpu")
+    # if dry_run_dump:
+    #     # dump the embeddings to a file for inspection
+    #     filename = f"data/processed/{embedding_model}_embeddings.dat"
+    #     with open(filename, "wb") as f:
+    #         pickle.dump(colloc_bert_embeddings, f)
 
-    # normalize the embeddings to standard normal
-    # TODO: why does normalizing per dimension produce drastically different results?
-    # specifically, if norm by dim here and applying non-normed noise
-    colloc_bert_embeddings = (
-        colloc_bert_embeddings - colloc_bert_embeddings.mean()
-    ) / colloc_bert_embeddings.std()
+    #         print(f"Dumped embeddings to file {filename} for inspection.")
 
-    if dry_run_dump:
-        # dump the embeddings to a file for inspection
-        filename = f"data/processed/{embedding_model}_embeddings.dat"
-        with open(filename, "wb") as f:
-            pickle.dump(colloc_bert_embeddings, f)
-
-            print(f"Dumped embeddings to file {filename} for inspection.")
-
-        exit()
+    #     exit()
 
     # norm by row, (as suggested in SBERT?)
     # colloc_bert_embeddings = colloc_bert_embeddings / colloc_bert_embeddings.norm(dim=1).unsqueeze(1)
@@ -311,90 +453,6 @@ def run_experiment(
         participant_seeds.append(random.randint(0, 9999999))
 
     ## Now we run the experiment
-
-    def iter(p, s, device):
-        # print(f"\nSeed {s}\n")
-        random_generator = random.Random(s)
-        torch_generator = torch.Generator(device=device).manual_seed(s)
-
-        # sample from the collocations to make a M x 768 matrix
-        sample_k = M - len(colloc_bert_embeddings)
-
-        if do_equal_frequency:
-            sampled_collocs = torch.stack(
-                random_generator.choices(colloc_bert_embeddings, k=sample_k)
-            )
-        else:
-            sampled_collocs = torch.stack(
-                random_generator.choices(
-                    colloc_bert_embeddings, k=sample_k, weights=norm_freq_en
-                )
-            )
-
-        matrix = torch.concat([colloc_bert_embeddings, sampled_collocs], dim=0).to(device)
-
-        assert matrix.size() == (M, embed_dim), "Huh?"
-
-        # TODO: document noise procedure
-        # again, why is noising per dimension so different?
-        noise_mean = torch.tensor([0.0]).expand(M, embed_dim).to(device)
-        # tie noise to the std of the matrix
-        noise_std = (
-            matrix.std().expand(M, embed_dim) / 2
-        ).to(device)
-
-        print(f"Noising with std {noise_std.mean()}")
-        noise_gaussian = torch.normal(noise_mean, noise_std, generator=torch_generator).to(device)
-        noise_mask = torch.rand((M, embed_dim), generator=torch_generator, device=device)
-        noisy_mem = torch.where(
-            noise_mask < forget_prob, matrix + noise_gaussian, matrix
-        )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
-        # noisy_mem = torch.where(
-        #     noise_mask < L, 0.0, matrix
-        # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
-        noisy_mem = noisy_mem.to(device)
-
-        minz = Minerva2(
-            Mat=noisy_mem
-        )  # initialize the Minerva2 model with the noisy memory matrix
-        # minz = AttentionMinerva2(
-        #     Mat=noisy_mem
-        # )  # initialize the Minerva2 model with the noisy memory matrix
-
-        # print(f"\nBegin simulation: {n} L1 Subjects\n---------------------------------")
-
-        output = []  # initialize an empty list to store the output
-
-        if os.environ.get("MINERVA_DEBUG"):
-            DEBUG_N = 10
-            logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
-            items = list(colloc_embeddings.items())[:DEBUG_N]
-        else:
-            items = colloc_embeddings.items()
-
-        for item, data in items:
-            vec = data["vec"]
-            act, rt = minz.recognize(
-                vec.to(device), k=minerva_k, maxiter=minerva_max_iter
-            )
-            output.append([item, act.detach().cpu().item(), rt, data["n_kwics"]])
-            print(
-                f"Participant {p+1} \t| Seed {s}\t | Running on {device} \t| {output[-1] if output else ''}"
-            )
-
-        print(
-            f" Done with Participant {p+1} | Seed {s}  \n----------------------------------",
-            flush=True,
-        )
-        results_df = pd.DataFrame(
-            data=output,
-            columns=["item", "act", "rt", "n_kwics"],
-        )
-        # results_df["mode"] = "l1"
-        results_df["id"] = s
-        results_df["participant"] = p + 1
-
-        return results_df
 
     NUM_WORKERS = min(num_workers, num_participants)
 
@@ -415,11 +473,32 @@ def run_experiment(
     #     os.remove(out_file + ".lock")
 
     results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
-        delayed(iter)(p, s, worker_devices[p % NUM_WORKERS])
+        delayed(run_iteration)(
+            p,
+            s,
+            worker_devices[p % NUM_WORKERS],
+            colloc_embeddings,
+            norm_freq_en,
+            do_equal_frequency,
+            M,
+            embed_dim,
+            forget_prob,
+            minerva_k,
+            minerva_max_iter,
+        )
         for p, s in enumerate(participant_seeds)
     )
 
-    results_df = pd.concat(results, ignore_index=True)
+    results_df: pd.DataFrame = pd.concat(results, ignore_index=True)
+
+    # # average the activations over all participants
+    # activations_0 = results_df.groupby("item")["activations_0"].apply(
+    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # )
+    # activations_tau = results_df.groupby("item")["activations_tau"].apply(
+    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # )
+
     results_df["embedding_model"] = embedding_model
     results_df["is_noise_embeddings"] = do_noise_embeddings
     results_df["is_equal_frequency"] = do_equal_frequency
@@ -427,6 +506,9 @@ def run_experiment(
     results_df["minerva_max_iter"] = minerva_max_iter
     results_df["avg_last_n_layers"] = avg_last_n_layers
     results_df["forget_prob"] = forget_prob
+
+    if not return_activations:
+        results_df.drop(columns=["activations_0", "activations_tau"], inplace=True)
 
     return results_df
 
@@ -463,6 +545,13 @@ if __name__ == "__main__":
         help="Which model to use for embeddings (sbert, fasttext)",
         default="sbert",
         choices=["sbert", "fasttext"],
+    )
+    parser.add_argument(
+        "-f",
+        "--forget_prob",
+        help="Probability of forgetting (noising an embedding dimension)",
+        default=0.6,
+        type=float,
     )
     parser.add_argument(
         "--do_noise_embeddings",
@@ -532,6 +621,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--write_activations_json",
+        help="Write activations to a json file",
+        action="store_true",
+        default=True,
+    )
     args = parser.parse_args()
 
     assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
@@ -541,6 +636,7 @@ if __name__ == "__main__":
         kwics_file_to_use=args.kwics_file_to_use,
         num_participants=args.num_participants,
         embedding_model=args.embedding_model,
+        forget_prob=args.forget_prob,
         do_noise_embeddings=args.do_noise_embeddings,
         do_equal_frequency=args.do_equal_frequency,
         do_log_freq=args.do_log_freq,
@@ -551,12 +647,33 @@ if __name__ == "__main__":
         avg_last_n_layers=args.avg_last_n_layers,
         label=args.label,
         dry_run_dump=args.dry_run_dump,
+        return_activations=args.write_activations_json,
     )
+
+    if args.write_activations_json:
+        activations_df = results_df[
+            ["item", "participant", "activations_0", "activations_tau"]
+        ]
+        results_df = results_df.drop(columns=["activations_0", "activations_tau"])
+
+    # # average the activations over all participants
+    # activations_0 = results_df.groupby("item")["activations_0"].apply(
+    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # )
+    # activations_tau = results_df.groupby("item")["activations_tau"].apply(
+    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # )
 
     if args.append_to_file:
         results_df.to_csv(args.append_to_file, mode="a", header=False, index=False)
         print(f"Appended results to {args.append_to_file}")
     else:
-        out_file = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.embedding_model}-{args.num_participants}p-{'noise-' if args.do_noise_embeddings else ''}{'equal_f-' if args.do_equal_frequency else ''}last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}.csv"
-        results_df.to_csv(out_file, index=False)
-        print(f"Wrote results to {out_file}")
+        out_file_stem = f"results/results-{Path(args.dataset_to_use).name[:-4]}-{args.embedding_model}-{args.num_participants}p-{'noise-' if args.do_noise_embeddings else ''}{'equal_f-' if args.do_equal_frequency else ''}last_{args.avg_last_n_layers}-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}{'-concat' if args.concat_tokens else ''}-m2k_{args.minerva_k}-m2mi_{args.minerva_max_iter}{'-' + args.label if args.label else ''}"
+        csv_file = out_file_stem + ".csv"
+        results_df.to_csv(csv_file, index=False)
+        if args.write_activations_json:
+            json_file = out_file_stem + "_activations.json"
+            activations_df.to_json(json_file, orient="index")
+            print(f"Wrote results to {csv_file} and {json_file}")
+        else:
+            print(f"Wrote results to {csv_file}")
