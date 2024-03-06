@@ -373,7 +373,7 @@ def run_experiment(
     minerva_max_iter=450,
     num_workers=1,
     do_concat_tokens=False,
-    avg_last_n_layers=4,
+    avg_last_n_layers=1,
     label=None,
     dry_run_dump=False,
     return_activations=False,
@@ -601,7 +601,7 @@ if __name__ == "__main__":
         "--avg_last_n_layers",
         dest="avg_last_n_layers",
         help="Average last n layers of BERT",
-        default=4,
+        default=1,
         type=int,
     )
     parser.add_argument(
