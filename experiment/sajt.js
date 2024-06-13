@@ -317,10 +317,10 @@ var ajt_practice_trial = {
   choices: ["y", "n"],
   trial_duration: 8000,
   feedback_duration: 3000,
-  correct_text: "<h1 class='prompt'> &#128515 </h1>\
-  <h3 class='prompt' style='color: green;'> Yay! </h3>",
-  incorrect_text: "<h1 class='prompt''> &#128534 </h1>\
-  <h3 class='prompt' style='color: red;'> Hmmm... </h3>",
+  correct_text: "<h1 class='prompt'> &#128077 </h1>\
+  <h3 class='prompt' style='color: green;'> Correct :) </h3>",
+  incorrect_text: "<h1 class='prompt''> &#128078 </h1>\
+  <h3 class='prompt' style='color: red;'> Incorrect :( </h3>",
   prompt:
     `<p id="prompt"><em>Would this word combination be used by a native English speaker?\
      <br> Press <b>Y</b> for yes or <b>N</b> for no.</em></p>`,
@@ -354,7 +354,9 @@ var ajt_test_trial = {
 
 var break_trial = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: "<h1 class='prompt''> &#128517 </h1>\ <p style='font-size:70px; font-weight:bolder;'> You're halfway there! Time for a short 10-second break.</p>",
+  stimulus: "<h1 class='prompt'> &#128517 </h1>\
+  <p style='font-size:20px; font-weight:bolder;'> You're halfway there! Time for a short 10-second break.</p>\
+   <p style='font-size:20px; font-weight:bolder;'> Don't go anywhere!</p>",
   trial_duration: 10000,
   response_ends_trial: false,
   on_finish: markTrialAsFake,
@@ -420,7 +422,7 @@ var welcome = {
     <p style='text-align:left'>You will be given a short, engaging, and simple task to perform.\
     There will be instructions &#128064 and practice with feedback. Please pay close attention to them.\
     Before you begin, please ensure that you are in a quiet space where you are unlikely to be distracted or interrupted.\
-    <mark>Keep in mind that there are no right or wrong answers.</mark> We are only interested in your intuitions as a native English speaker.\
+    We are only interested in your intuitions as a native English speaker.\
     So, relax and have fun. You should be done in about 5 to 7 minutes.</p>\
     <h3>Click the button below to proceed.</h3>",
   choices: ["Click to proceed"],
@@ -433,10 +435,10 @@ var ajt_instructions = {
   pages: [
     "<h1>&#128064 Instructions</h1> <br> <h4>[Use arrow keys to navigate.]</h4>",
     "<p style='text-align:left'>In this task, you will read word combinations in English without context. You have to determine if they sound \
-  acceptable to you. By acceptable, we mean whether you think a native English speaker would use this word combination in a conversation.\
+  acceptable to you. By acceptable, we mean whether you think a native English speaker would use this word combination.\
   In other words, do you think it would sound odd for someone to say this to you, as if they don't speak English natively?</p>",
     "<h2>&#128064 Instructions</h2>\
-  <p style='text-align:left'> There are no right or wrong answers. We are interested in your initial intuitions about these word combinations.\
+  <p style='text-align:left'>We are interested in your initial intuitions about these word combinations.\
   Please reply as quickly and accurately as possible by pressing the <b>Y</b> key for <em>yes</em> or the <b>N</b> key for <em>no</em>.\
   <br>If you do not respond within 8 seconds, you will automatically be moved on to the next word combination.</p>",
     "<h2>&#128064 Instructions</h2>\
@@ -479,7 +481,7 @@ var ajt_begin_test = {
   <img src='https://www.sydsphdresearch.ppls.ed.ac.uk/ProjectLiteral/experiment/yn-keys.gif' alt='keys' style='width:300px;height:300px;'>\
   <p style='text-align:center'> Keep your <b>index fingers</b> over the <b>Y</b> (<em>yes</em>) and <b>N</b> (<em>no</em>) keys.\
   Please refrain from doing this task one-handedly.\
-  If you don't respond within 8 seconds you will automatically be moved on to the next combination.</p>\
+  If you don't respond within 8 seconds you will automatically be moved on to the next combination. You will be given a 10-second break at the halfway point.</p>\
   <h4> Remember, we are interested in your first impressions!</h4>",
   choices: ["Enter"],
   prompt: ["<h3 style='text-align:center'> <br> Press 'Enter' to begin.</h3>"],
@@ -505,7 +507,13 @@ var save_data_trial = {
     var data_in = jsPsych.data.get();
     console.log(data_in);
     // var data_to_send = { getProlificID: jsPsych.data.getURLVariable("PROLIFIC_PID"), filedata: data_in };
-    var data_to_send = { prolific_study_id: getProlificStudyID(), prolific_id: getProlificID(), folda: getFolda(), foldb: getFoldb(), filedata: data_in };
+    var data_to_send = {
+      prolific_study_id: getProlificStudyID(),
+      prolific_id: getProlificID(),
+      folda: getFolda(),
+      foldb: getFoldb(),
+      filedata: data_in
+    };
     let response = fetch(url, {
       method: 'POST',
       body: JSON.stringify(data_to_send),
@@ -533,7 +541,7 @@ var final_screen = {
     "<img src='https://www.sydsphdresearch.ppls.ed.ac.uk/ProjectLiteral/experiment/UoELogoStacked.png' alt='Edinburgh University Logo' height='90'>\
   <img src='https://www.sydsphdresearch.ppls.ed.ac.uk/ProjectLiteral/experiment/done.gif' alt='smiley face celebrating all done gif' height='300px' width='300px'>\
   <p style='text-align:center'>Thank you for participating in our study. We hope you had fun.</p>\
-  <p style='text-align:center'>Here is the Completion Code <b>CSM761KM</b>.</p>\
+  <p style='text-align:center'>Here is the Completion Code <b>CX765PRW</b>.</p>\
   <p style='text-align:center'>Please copy and paste this into Prolific to claim your payment. </p>",
   choices: ["Click to Finish"],
   button_html: '<button>%choice%</button>',
@@ -547,15 +555,15 @@ var final_screen = {
 
 var full_timeline = [
   browserCheckTrial,
-  // participant_information,
-  // welcome,
-  // ajt_instructions,
-  // ajt_begin_practice,
-  // countdown,
-  // ajt_practice,
-  // ajt_end_practice,
-  // ajt_begin_test,
-  // countdown,
+  participant_information,
+  welcome,
+  ajt_instructions,
+  ajt_begin_practice,
+  countdown,
+  ajt_practice,
+  ajt_end_practice,
+  ajt_begin_test,
+  countdown,
   ajt_test_a,
   break_trial,
   break_end,

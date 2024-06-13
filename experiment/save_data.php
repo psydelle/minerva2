@@ -14,7 +14,7 @@ $obj = json_decode($json, true);
 // error_log("obj: ".print_r($obj, true));
 $prolific_id = $obj["prolific_id"];
 $prolific_study_id = $obj["prolific_study_id"];
-$fold_id = $obj["fold"];
+$fold_id = strval($obj["folda"])."_".strval($obj["foldb"]);
 
 function check_id_has_started($prolific_id, $prolific_study_id, $prolific_api_token, $url = null) {
     $ch = curl_init();

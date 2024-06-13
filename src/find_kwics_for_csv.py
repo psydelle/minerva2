@@ -110,7 +110,7 @@ def process_line(line):
     p = process_item(line)
     if not p["kwics"]:
         print("No KWICS found for", line["item"])
-    time.sleep(1)  # :(
+    time.sleep(1)  # SketchEngine timeout mitigation:(
     return (line["item"], p)
 
 
