@@ -1,0 +1,80 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run one experiment",
+            "type": "python",
+            "request": "launch",
+            "program": "src/run_one_experiment.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "MINERVA_DEBUG": "1",
+                "PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"
+            },
+            "args": [
+                "-d",
+                "data/stimuli_idioms_clean.csv",
+                "-k",
+                "data/stimuli_idioms_kwics.json",
+                // "none",
+                "-m",
+                // "fasttext",
+                "sbert",
+                "--num_workers",
+                "1",
+                "-n",
+                "3",
+                "--minerva_max_iter",
+                "300",
+                "--minerva_k",
+                "0.995",
+                "--avg_last_n_layers",
+                "1",
+                // "--dry_run_dump"
+            ]
+        },
+        {
+            "name": "Run All Experiments",
+            "type": "python",
+            "request": "launch",
+            "program": "src/run_all_experiments.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "MINERVA_DEBUG": "1"
+            },
+            "args": [
+                "-d",
+                "data/stimuli_idioms_clean.csv",
+                "-k",
+                "data/stimuli_idioms_kwics.json",
+                "--num_workers",
+                "10",
+                "-n",
+                "3",
+                "--do_log_freq",
+                "--resume_from_dir",
+                "results/_checkpoints/2024-02-27_11-27-35"
+            ]
+        },
+        {
+            "name": "Find Kwics",
+            "type": "python",
+            "request": "launch",
+            "program": "src/find_kwics_for_csv.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "-f",
+                "data/stimuli_idioms_clean.csv",
+                "-o",
+                "data/stimuli_idioms_kwics.json",
+            ]
+        }
+
+    ]
+}

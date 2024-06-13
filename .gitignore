@@ -3,7 +3,7 @@ __pycache__/
 
 *.lock
 *.dat
-.vscode
+.vscode/settings.json
 *.pth
 data/processed/*
 data/experiment-data/*
