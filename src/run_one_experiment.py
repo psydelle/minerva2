@@ -75,6 +75,62 @@ np.random.seed(0)
 EN_BERT = "sentence-transformers/all-MiniLM-L6-v2"
 # NORM_ALPHA = 0.9
 
+class IRM():
+    """
+    This is a class for the Iterative Resonance Model (IRM)
+    """
+
+    def __init__(self, Mat, norm_activation=False):
+        self.Mat = Mat
+        self.M = Mat.shape[0]
+        self.F = Mat.shape[1]
+        self.norm_activation = norm_activation
+
+    def activate(self, probe, tau=1.0, _sims_memo=None):
+        if _sims_memo is None:
+            similarity = torch.cosine_similarity(probe, self.Mat, dim=1)
+        else:
+            similarity = _sims_memo
+
+        # exponentiate and make sure we preserve the signs
+        activation = torch.abs(similarity**tau) * torch.sign(similarity)
+        if self.norm_activation:
+            activation = activation / torch.norm(activation, p=1)
+        return activation, similarity
+
+    def echo(self, probe, tau=1.0, _sims_memo=None):
+        activations, _sims_memo = self.activate(probe, tau, _sims_memo=_sims_memo)
+        return (
+            torch.tensordot(activations, self.Mat, dims=([0], [0])),
+            activations,
+            _sims_memo,
+        )
+
+    def recognize(self, probe, k=0.955, k_neg=1.0, maxiter=300, _sims_memo=None):
+        k_pos = k
+        activations_0 = None
+
+        for tau in range(1, maxiter):
+            echo, activations_tau, _sims_memo = self.echo(
+                probe, tau, _sims_memo=_sims_memo
+            )
+            if activations_0 is None:
+                activations_0 = activations_tau
+
+            probe_echo_sim = torch.cosine_similarity(echo, probe, dim=0)
+
+            # negative criterion
+            echo_norm = echo# / torch.norm(echo, p=1)
+            probe_norm = probe# / torch.norm(probe, p=1)
+            probe_feature_importance = probe.abs() / probe.abs().sum()
+            neg_l2 = torch.norm((echo_norm - probe_norm)* probe_feature_importance, p=1)
+
+            print(f"tau: {tau}, sim: {probe_echo_sim}, echo_sum: {echo.sum()}, neg_l2: {neg_l2}")
+
+            if probe_echo_sim >= k_pos:
+                break
+
+        return probe_echo_sim, tau, activations_0, activations_tau
 
 class Minerva2(object):
     """
@@ -289,6 +345,10 @@ def run_iteration(
     # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     noisy_mem = noisy_mem.to(device)
 
+    # minz = IRM(
+    #     Mat=noisy_mem,
+    #     norm_activation=True,
+    # )  # initialize the Minerva2 model with the noisy memory matrix
     minz = Minerva2(
         Mat=noisy_mem,
         norm_activation=True,
