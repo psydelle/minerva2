@@ -1,0 +1,740 @@
+[
+    {
+        "verb": "fry",
+        "noun": "knob",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "knobs",
+        "item": "fry knobs",
+        "stimuli_grammatical": "fry a knob"
+    },
+    {
+        "verb": "dazzle",
+        "noun": "career",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "careers",
+        "item": "dazzle careers",
+        "stimuli_grammatical": "dazzle one's career"
+    },
+    {
+        "verb": "prune",
+        "noun": "chip",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "chips",
+        "item": "prune chips",
+        "stimuli_grammatical": "prune the chip"
+    },
+    {
+        "verb": "trim",
+        "noun": "wisdom",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "wisdom",
+        "item": "trim wisdom",
+        "stimuli_grammatical": "trim wisdom"
+    },
+    {
+        "verb": "carve",
+        "noun": "hatred",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "hatred",
+        "item": "carve hatred",
+        "stimuli_grammatical": "carve one's hatred"
+    },
+    {
+        "verb": "clap",
+        "noun": "heat",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "heat",
+        "item": "clap heat",
+        "stimuli_grammatical": "clap the heat"
+    },
+    {
+        "verb": "reward",
+        "noun": "salad",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "salads",
+        "item": "reward salads",
+        "stimuli_grammatical": "reward the salad"
+    },
+    {
+        "verb": "delete",
+        "noun": "paint",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "paint",
+        "item": "delete paint",
+        "stimuli_grammatical": "delete the paint"
+    },
+    {
+        "verb": "dam",
+        "noun": "gift",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "gifts",
+        "item": "dam gifts",
+        "stimuli_grammatical": "dam a gift"
+    },
+    {
+        "verb": "copy",
+        "noun": "ham",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "hams",
+        "item": "copy hams",
+        "stimuli_grammatical": "copy the ham"
+    },
+    {
+        "verb": "roast",
+        "noun": "bell",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "bells",
+        "item": "roast bells",
+        "stimuli_grammatical": "roast a bell"
+    },
+    {
+        "verb": "measure",
+        "noun": "omen",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "omens",
+        "item": "measure omens",
+        "stimuli_grammatical": "measure an omen"
+    },
+    {
+        "verb": "decode",
+        "noun": "horror",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "horrors",
+        "item": "decode horrors",
+        "stimuli_grammatical": "decode a horror"
+    },
+    {
+        "verb": "climb",
+        "noun": "twine",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "twine",
+        "item": "climb twine",
+        "stimuli_grammatical": "climb twine"
+    },
+    {
+        "verb": "wash",
+        "noun": "mountain",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "mountains",
+        "item": "wash mountains",
+        "stimuli_grammatical": "wash the mountain"
+    },
+    {
+        "verb": "stamp",
+        "noun": "music",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "music",
+        "item": "stamp music",
+        "stimuli_grammatical": "stamp the music"
+    },
+    {
+        "verb": "clean",
+        "noun": "mercy",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "mercy",
+        "item": "clean mercy",
+        "stimuli_grammatical": "clean mercy"
+    },
+    {
+        "verb": "tweak",
+        "noun": "fame",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "fame",
+        "item": "tweak fame",
+        "stimuli_grammatical": "tweak one's fame"
+    },
+    {
+        "verb": "boil",
+        "noun": "faith",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "faith",
+        "item": "boil faith",
+        "stimuli_grammatical": "boil one's faith"
+    },
+    {
+        "verb": "drag",
+        "noun": "surprise",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "surprises",
+        "item": "drag surprises",
+        "stimuli_grammatical": "drag a surprise"
+    },
+    {
+        "verb": "trick",
+        "noun": "ticket",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "tickets",
+        "item": "trick tickets",
+        "stimuli_grammatical": "trick the ticket"
+    },
+    {
+        "verb": "entice",
+        "noun": "pension",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "pension",
+        "item": "entice pension",
+        "stimuli_grammatical": "entice a pension"
+    },
+    {
+        "verb": "tame",
+        "noun": "cloud",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "clouds",
+        "item": "tame clouds",
+        "stimuli_grammatical": "tame the clouds"
+    },
+    {
+        "verb": "mend",
+        "noun": "snow",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "snow",
+        "item": "mend snow",
+        "stimuli_grammatical": "mend the snow"
+    },
+    {
+        "verb": "sweep",
+        "noun": "diamond",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "diamonds",
+        "item": "sweep diamonds",
+        "stimuli_grammatical": "sweep a diamond"
+    },
+    {
+        "verb": "fold",
+        "noun": "sorrow",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "sorrow",
+        "item": "fold sorrow",
+        "stimuli_grammatical": "fold one's sorrow"
+    },
+    {
+        "verb": "mix",
+        "noun": "lung",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "lungs",
+        "item": "mix lungs",
+        "stimuli_grammatical": "mix lungs"
+    },
+    {
+        "verb": "shave",
+        "noun": "anger",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "anger",
+        "item": "shave anger",
+        "stimuli_grammatical": "shave anger"
+    },
+    {
+        "verb": "crank",
+        "noun": "flower",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "flowers",
+        "item": "crank flowers",
+        "stimuli_grammatical": "crank the flower"
+    },
+    {
+        "verb": "polish",
+        "noun": "tear",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "tears",
+        "item": "polish tears",
+        "stimuli_grammatical": "polish a tear"
+    },
+    {
+        "verb": "hammer",
+        "noun": "lawn",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "lawns",
+        "item": "hammer lawns",
+        "stimuli_grammatical": "hammer the lawn"
+    },
+    {
+        "verb": "whip",
+        "noun": "alarm",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "alarms",
+        "item": "whip alarms",
+        "stimuli_grammatical": "whip the alarm"
+    },
+    {
+        "verb": "grind",
+        "noun": "fraud",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "frauds",
+        "item": "grind frauds",
+        "stimuli_grammatical": "grind a fraud"
+    },
+    {
+        "verb": "peel",
+        "noun": "angel",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "angels",
+        "item": "peel angel",
+        "stimuli_grammatical": "peel angels"
+    },
+    {
+        "verb": "crush",
+        "noun": "beauty",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "beauties",
+        "item": "crush beauties",
+        "stimuli_grammatical": "crush one's beauty"
+    },
+    {
+        "verb": "sharpen",
+        "noun": "medicine",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "medicines",
+        "item": "sharpen medicines",
+        "stimuli_grammatical": "sharpen the medicine"
+    },
+    {
+        "verb": "help",
+        "noun": "cable",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "cables",
+        "item": "help cables",
+        "stimuli_grammatical": "help a cable"
+    },
+    {
+        "verb": "smash",
+        "noun": "color",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "colors",
+        "item": "smash colors",
+        "stimuli_grammatical": "smash the color"
+    },
+    {
+        "verb": "fix",
+        "noun": "yam",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "yams",
+        "item": "fix yams",
+        "stimuli_grammatical": "fix the yam"
+    },
+    {
+        "verb": "govern",
+        "noun": "apple",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "apples",
+        "item": "govern apples",
+        "stimuli_grammatical": "govern an apple"
+    },
+    {
+        "verb": "grill",
+        "noun": "hole",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "holes",
+        "item": "grill holes",
+        "stimuli_grammatical": "grill a hole"
+    },
+    {
+        "verb": "stew",
+        "noun": "beach",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "beaches",
+        "item": "stew beaches",
+        "stimuli_grammatical": "stew the beach"
+    },
+    {
+        "verb": "wage",
+        "noun": "beetle",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "beetles",
+        "item": "wage beetles",
+        "stimuli_grammatical": "wage a beetle"
+    },
+    {
+        "verb": "bleed",
+        "noun": "fog",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "fog",
+        "item": "bleed fog",
+        "stimuli_grammatical": "bleed the fog"
+    },
+    {
+        "verb": "strum",
+        "noun": "collar",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "collars",
+        "item": "strum collars",
+        "stimuli_grammatical": "strum one's collar"
+    },
+    {
+        "verb": "detain",
+        "noun": "rod",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "rods",
+        "item": "detain rods",
+        "stimuli_grammatical": "detain the rod"
+    },
+    {
+        "verb": "vacuum",
+        "noun": "district",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "districts",
+        "item": "vacuum districts",
+        "stimuli_grammatical": "vacuum the district"
+    },
+    {
+        "verb": "employ",
+        "noun": "beet",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "beets",
+        "item": "employ beets",
+        "stimuli_grammatical": "employ the beet"
+    },
+    {
+        "verb": "yank",
+        "noun": "despair",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "despairs",
+        "item": "yank despairs",
+        "stimuli_grammatical": "yank one's despair"
+    },
+    {
+        "verb": "slay",
+        "noun": "groan",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "groans",
+        "item": "slay groans",
+        "stimuli_grammatical": "slay the groan"
+    },
+    {
+        "verb": "trip",
+        "noun": "shingle",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "shingles",
+        "item": "trip shingles",
+        "stimuli_grammatical": "trip one's shingle"
+    },
+    {
+        "verb": "croak",
+        "noun": "report",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "reports",
+        "item": "croak reports",
+        "stimuli_grammatical": "croak the report"
+    },
+    {
+        "verb": "sound",
+        "noun": "toe",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "toes",
+        "item": "sound toes",
+        "stimuli_grammatical": "sound the toe"
+    },
+    {
+        "verb": "tickle",
+        "noun": "freedom",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "freedoms",
+        "item": "tickle freedoms",
+        "stimuli_grammatical": "tickle one's freedom"
+    },
+    {
+        "verb": "lick",
+        "noun": "chorus",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "choruses",
+        "item": "lick choruses",
+        "stimuli_grammatical": "lick the chorus"
+    },
+    {
+        "verb": "jangle",
+        "noun": "mist",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "mists",
+        "item": "jangle mists",
+        "stimuli_grammatical": "jangle the mist"
+    },
+    {
+        "verb": "straddle",
+        "noun": "virus",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "viruses",
+        "item": "straddle viruses",
+        "stimuli_grammatical": "straddle the virus"
+    },
+    {
+        "verb": "jolt",
+        "noun": "poll",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "polls",
+        "item": "jolt polls",
+        "stimuli_grammatical": "jolt the poll"
+    },
+    {
+        "verb": "knead",
+        "noun": "crystal",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "crystals",
+        "item": "knead crystals",
+        "stimuli_grammatical": "knead a crystal"
+    },
+    {
+        "verb": "crane",
+        "noun": "flask",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "flasks",
+        "item": "crane flasks",
+        "stimuli_grammatical": "crane the flask"
+    },
+    {
+        "verb": "cradle",
+        "noun": "wave",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "waves",
+        "item": "cradle waves",
+        "stimuli_grammatical": "cradle the wave"
+    },
+    {
+        "verb": "derive",
+        "noun": "kettle",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "kettles",
+        "item": "derive kettles",
+        "stimuli_grammatical": "derive the kettle"
+    },
+    {
+        "verb": "annoy",
+        "noun": "chalk",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "chalks",
+        "item": "annoy chalks",
+        "stimuli_grammatical": "annoy the chalk"
+    },
+    {
+        "verb": "zap",
+        "noun": "arrow",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "arrows",
+        "item": "zap arrows",
+        "stimuli_grammatical": "zap the arrow"
+    },
+    {
+        "verb": "annoint",
+        "noun": "sofa",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "sofas",
+        "item": "annoint sofas",
+        "stimuli_grammatical": "annoint one's sofa"
+    },
+    {
+        "verb": "crumple",
+        "noun": "cult",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "cults",
+        "item": "crumple cults",
+        "stimuli_grammatical": "crumple the cult"
+    },
+    {
+        "verb": "engrave",
+        "noun": "boredom",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "boredom",
+        "item": "engrave boredom",
+        "stimuli_grammatical": "engrave one's boredom"
+    },
+    {
+        "verb": "trail",
+        "noun": "grape",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "grapes",
+        "item": "trail grapes",
+        "stimuli_grammatical": "trail the grapes"
+    },
+    {
+        "verb": "drench",
+        "noun": "labor",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "labors",
+        "item": "drench labors",
+        "stimuli_grammatical": "drench the labor"
+    },
+    {
+        "verb": "douse",
+        "noun": "wind",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "winds",
+        "item": "douse winds",
+        "stimuli_grammatical": "douse a wind"
+    },
+    {
+        "verb": "exercise",
+        "noun": "lemon",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "lemons",
+        "item": "exercise lemons",
+        "stimuli_grammatical": "exercise a lemon"
+    },
+    {
+        "verb": "expose",
+        "noun": "winter",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "winters",
+        "item": "expose winters",
+        "stimuli_grammatical": "expose winter"
+    },
+    {
+        "verb": "fling",
+        "noun": "procedure",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "procedures",
+        "item": "fling procedures",
+        "stimuli_grammatical": "fling the procedure"
+    },
+    {
+        "verb": "regret",
+        "noun": "pillow",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "pillows",
+        "item": "regret pillows",
+        "stimuli_grammatical": "regret the pillow"
+    },
+    {
+        "verb": "scrounge",
+        "noun": "demise",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "demises",
+        "item": "scrounge demises",
+        "stimuli_grammatical": "scrounge the demise"
+    },
+    {
+        "verb": "sprout",
+        "noun": "mantle",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "mantles",
+        "item": "sprout mantles",
+        "stimuli_grammatical": "sprout the mantle"
+    },
+    {
+        "verb": "swat",
+        "noun": "treble",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "trebles",
+        "item": "swat trebles",
+        "stimuli_grammatical": "swat the treble"
+    },
+    {
+        "verb": "frisk",
+        "noun": "paint",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "paint",
+        "item": "frisk paint",
+        "stimuli_grammatical": "frisk the paint"
+    },
+    {
+        "verb": "sniff",
+        "noun": "landing",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "landings",
+        "item": "sniff landings",
+        "stimuli_grammatical": "sniff a landing"
+    },
+    {
+        "verb": "snort",
+        "noun": "coal",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "coals",
+        "item": "snort coals",
+        "stimuli_grammatical": "snort the coal"
+    },
+    {
+        "verb": "lend",
+        "noun": "burger",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "burgers",
+        "item": "lend burgers",
+        "stimuli_grammatical": "lend a burger"
+    },
+    {
+        "verb": "whack",
+        "noun": "burial",
+        "correct_ajt_response": "n",
+        "type": "baseline",
+        "noun_pl": "burials",
+        "item": "whack burials",
+        "stimuli_grammatical": "whack the burial"
+    }
+]
