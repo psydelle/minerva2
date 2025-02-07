@@ -45,7 +45,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
-                "MINERVA_DEBUG": "1"
+                // "MINERVA_DEBUG": "1"
             },
             "args": [
                 "-d",
@@ -55,10 +55,12 @@
                 "--num_workers",
                 "10",
                 "-n",
-                "3",
-                "--do_log_freq",
-                "--resume_from_dir",
-                "results/_checkpoints/2024-02-27_11-27-35"
+                "100",
+                "--minerva_max_iter",
+                "300",
+                // "--do_log_freq",
+                // "--resume_from_dir",
+                // "results/_checkpoints/2024-02-27_11-27-35"
             ]
         },
         {
