@@ -126,6 +126,125 @@ minerva <- minerva %>% filter(Model == "sbert")
 # write to csv
 write_csv(minerva, "minerva_contextual_clean.csv")
 
+
+# %%
+
+# Ivan's ablation code
+
+minerva <- read_csv("ablation-results\\results-stimuli_idioms_clean-100p-last_1-kwics-logfreq-all-fp_0.0-0.8-m2k_0.95-0.995-m2mi_300-log_no_concat_small.csv")
+stimuli <- read_csv("data\\stimuli_idioms_clean_annotated1.csv", col_names = TRUE)
+
+# capitalize first letter in column names of stimuli
+colnames(stimuli) <- tools::toTitleCase(colnames(stimuli))
+colnames(stimuli)
+
+# keep necessary columns
+stimuli <- stimuli %>%
+    dplyr::select(c(Stimuli_grammatical, Verb, Noun, Fitem, Score, Item, Type))
+
+# rename columns
+stimuli <- stimuli %>%
+    rename(
+        Stimuli = Stimuli_grammatical,
+        Frequency = Fitem
+    )
+
+minerva <- minerva %>% rename(Item = item)
+
+# merge data
+minerva <- minerva %>% left_join(stimuli, by = "Item")
+
+colnames(minerva) <- tolower(colnames(minerva))
+
+minerva <- minerva %>%
+    rename(
+        fitem = frequency,
+    )
+
+minerva <- minerva %>% dplyr::select(c(participant, item, type, verb, rt, minerva_k, forget_prob, fitem, score, is_noise_embeddings, is_equal_frequency, embedding_model)) # nolint
+
+# convert all columns except tau, fitem, and score to factor
+minerva <- minerva %>%
+    mutate_at(vars(-rt, -fitem, -score, -minerva_k, -forget_prob), as.factor)
+
+
+# rename type levels using dplyr
+
+minerva$type <- dplyr::recode(minerva$type,
+    "prod" = "Compositional",
+    "collocation" = "Collocation",
+    "idiom" = "Idiom"
+)
+
+# relevel factors for type
+minerva$type <- relevel(minerva$type, ref = "Compositional")
+
+
+# check unique values for factor variables
+unique(is.na(minerva$rt)) # check for missing values
+n_distinct(minerva$participant) # check unique participant
+
+type <- unique(minerva$type) # check unique type
+type
+
+unique(minerva$minerva_k) # check unique k
+unique(minerva$forget_prob) # check unique forget_prob
+unique(minerva$is_noise_embeddings) # check semantic condition
+unique(minerva$is_equal_frequency) # check frequency condition
+unique(minerva$embedding_model) # check unique embedding model
+
+# add a column for embedding type
+minerva <- minerva %>%
+    mutate(Embedding = ifelse(embedding_model == "sbert", "Contextual", "Non-contextual")) # nolint
+
+# add a column for experiment type
+
+minerva <- minerva %>%
+    mutate(
+        Experiment = ifelse(is_noise_embeddings == "TRUE" & is_equal_frequency == "FALSE", "Frequency-only", # nolint: line_length_linter.
+            ifelse(is_equal_frequency == "TRUE" & is_noise_embeddings == "FALSE", "Semantics-only", # nolint: line_length_linter.
+                ifelse(is_noise_embeddings == "FALSE" & is_equal_frequency == "FALSE", "Frequency & Semantics", "Null Model") # nolint: line_length_linter.
+            )
+        ) # nolint
+    )
+
+unique(minerva$Experiment) # check unique experiment
+
+# rename columns
+minerva <- minerva %>% rename(
+    "ID" = participant,
+    "Item" = item,
+    "Condition" = type,
+    "Tau" = rt,
+    "K" = minerva_k,
+    "Forget" = forget_prob,
+    "Frequency" = fitem,
+    "Score" = score,
+    "Model" = embedding_model,
+    "Verb" = verb
+)
+
+
+# print col names
+colnames(minerva)
+
+# drop columns
+minerva <- minerva %>% dplyr::select(-c(is_noise_embeddings, is_equal_frequency))
+
+# filter out verbs with low accuracy as we did in human experiments
+minerva <- minerva %>% filter(Verb != "silence")
+minerva <- minerva %>% filter(Verb != "muzzle")
+minerva <- minerva %>% filter(Verb != "pad")
+minerva <- minerva %>% filter(Verb != "slap")
+
+# from here on , we only deal with contextual embeddings
+minerva <- minerva %>% filter(Model == "sbert")
+
+# write to csv
+write_csv(minerva, "ablation-results\\clean\\log_no_concat_sweep.csv")
+
+
+
 # %%
 
 # check experiment data

@@ -56,7 +56,7 @@ plot <-  minerva %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(title = "Null Model", y = "Tau", subtitle = "With Contextual Embeddings") +
+    labs(title = "Null Model", y = "Tau", subtitle = "With Noise Embeddings") +
     theme_bw() +
     theme(
             title = element_text(size = 26, face = "bold"),
@@ -172,3 +172,179 @@ plot <-  k99f08 %>%
 
 ggsave("barplot-k99f08-timeouts-count-contextual.png", plot, width = 30, height = 20, units = "cm")
 
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+# %%
+# Ablation Station
+
+library(tidyverse) # data wrangling
+library(skimr) # summary statistics
+library(pander) # for publication-ready tables
+library(xtable) # for latex tables
+# library(patchwork) # for combining plots
+library(lme4) # for mixed effects models
+
+# set theme for ggplot
+theme_set(theme_bw())
+
+# use cores for parallel processing
+options(mc.cores = parallel::detectCores())
+
+# options(ggplot2.discrete.fill = c("#00AFBB", "#E7B800", "#FC4E07"))
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#646262"))
+
+options(digits = 3)
+
+# set seed for reproducibility
+set.seed(0976)
+
+
+#%%
+# read data
+minerva <- read_csv("ablation-results\\clean\\mean_sweep.csv")
+# check experiment data
+
+n_id <- n_distinct(minerva$ID) # number of participants should be 300
+sprintf("Number of participants: %s", n_id)
+
+n_condition <- n_distinct(minerva$Condition) # number of conditions should be 3
+sprintf("Number of experimental conditions: %s", n_condition)
+
+n_item <- n_distinct(minerva$Item) # number of items should be 234 we removed 12 items from the original list
+sprintf("Number of experimental items: %s", n_item)
+
+n_k <- n_distinct(minerva$K) # number of ks should be 6
+sprintf("Number of different ks: %s", n_k)
+
+n_forget <- n_distinct(minerva$Forget) # number of forget probabilities should be 5
+sprintf("Number of different forget probabilities: %s", n_forget)
+
+experiments <- unique(minerva$Experiment) 
+
+# relevel the condition
+minerva$Condition <- factor(minerva$Condition, levels = c("Compositional", "Collocation", "Idiom"))
+minerva$Experiment <- factor(minerva$Experiment, levels = c(experiments))
+
+
+# #%%
+# plot <-  minerva %>%
+#     filter(Experiment == "Null Model") %>%
+#     group_by(Condition, K, Forget) %>%
+#     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+#     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+#     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+#     labs(title = "Null Model", y = "Tau", subtitle = "With Noise Embeddings") +
+#     theme_bw() +
+#     theme(
+#             title = element_text(size = 26, face = "bold"),
+#             axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+#             axis.title = element_text(size = 18, face = "bold"),
+#             axis.title.x = element_blank(),
+#             axis.text.y = element_text(size = 20, face = "bold"),
+#             axis.text.x = element_blank(),
+#             legend.title = element_blank(),
+#             legend.text = element_text(size = 20, face = "bold"),
+#             legend.position = "bottom",
+#             strip.text.x = element_text(size = 18, face = "bold"),
+#             strip.text.y = element_text(size = 18, face = "bold"),
+#             strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+#             panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+#             panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+#             panel.spacing = unit(0, "points"),
+#             plot.background = element_rect(colour = "white", fill = "white"),
+#         ) +   facet_grid(K ~ Forget, scales = "free_y")
+
+# ggsave("ablation-results\\plots\\barplot-null-contextual.png", plot, width = 30, height = 50, units = "cm")
+
+
+#%%
+plot <-  minerva %>%
+    filter(Experiment == "Frequency & Semantics") %>%
+    group_by(Condition, K, Forget) %>%
+    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+    labs(title = "Frequency & Semantics", y = "Tau", subtitle = "Mean Across Verb and Noun") +
+    theme_bw() +
+    theme(
+            title = element_text(size = 26, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 18, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.text.y = element_text(size = 20, face = "bold"),
+            axis.text.x = element_blank(),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 20, face = "bold"),
+            legend.position = "bottom",
+            strip.text.x = element_text(size = 18, face = "bold"),
+            strip.text.y = element_text(size = 18, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"),
+        ) +   facet_grid(K ~ Forget, scales = "free_y")
+
+ggsave("ablation-results\\plots\\barplot-fs-contextual-mean.png", plot, width = 30, height = 50, units = "cm")
+
+#%%
+plot <-  minerva %>%
+    filter(Experiment == "Frequency-only") %>%
+    group_by(Condition, K, Forget) %>%
+    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+    labs(title = "Frequency Only", y = "Tau", subtitle = "Mean Across Verb and Noun") +
+    theme_bw() +
+    theme(
+            title = element_text(size = 26, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 18, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.text.y = element_text(size = 20, face = "bold"),
+            axis.text.x = element_blank(),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 20, face = "bold"),
+            legend.position = "bottom",
+            strip.text.x = element_text(size = 18, face = "bold"),
+            strip.text.y = element_text(size = 18, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"),
+        ) +   facet_grid(K ~ Forget, scales = "free_y")
+
+ggsave("ablation-results\\plots\\barplot-fonly-contextual-mean.png", plot, width = 30, height = 50, units = "cm")
+
+# %%
+plot <-  minerva %>%
+    filter(Experiment == "Semantics-only") %>%
+    group_by(Condition, K, Forget) %>%
+    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+    labs(title = "Semantics Only", y = "Tau", subtitle = "Mean Across Verb and Noun") +
+    theme_bw() +
+    theme(
+            title = element_text(size = 26, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 18, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.text.y = element_text(size = 20, face = "bold"),
+            axis.text.x = element_blank(),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 20, face = "bold"),
+            legend.position = "bottom",
+            strip.text.x = element_text(size = 18, face = "bold"),
+            strip.text.y = element_text(size = 18, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"),
+        ) +   facet_grid(K ~ Forget, scales = "free_y")
+
+ggsave("ablation-results\\plots\\barplot-sonly-contextual-mean.png", plot, width = 30, height = 50, units = "cm")
