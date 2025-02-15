@@ -34,7 +34,7 @@ library(emmeans) # for post-hoc tests
 library(BMS) # for Bayes factors and Bayesian model averaging
 library(brms)
 # load data using relative path
-minerva <- read_csv("minerva_full_results.csv")
+minerva <- read_csv("results\\minerva_full_results.csv")
 
 
 
@@ -52,27 +52,18 @@ unique(minerva$minerva_k) # check unique k
 minerva <- minerva %>%
     mutate_at(vars(-act, -rt, -fitem, -score), as.factor)
 
-# relevel factors for type
-minerva$type <- relevel(minerva$type, ref = "prod")
-
-# convert doubles to integers
-
-
 # rename type levels using dplyr
 
 minerva$type <- dplyr::recode(minerva$type,
-    "prod" = "Productive",
+    "prod" = "Compositional",
     "collocation" = "Collocation",
     "idiom" = "Idiom"
 )
 
-unique(is.na(minerva$rt)) # check for missing values
+# relevel factors for type
+minerva$type <- relevel(minerva$type, ref = "Compositional")
 
-# check data types
-# skim(minerva)
-
-# no missing values everything looks good
-
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#bab9b9"))
 # %%
 
 # %%
@@ -86,13 +77,13 @@ mean_ci <- function(x) {
 }
 
 # Create a data frame with the results
-conditions <- c("Productive", "Collocation", "Idiom")
+conditions <- c("Compositional", "Collocation", "Idiom")
 k <- c(0.95, 0.96, 0.97, 0.98, 0.99)
 forget_prob <- c(0.0, 0.2, 0.4, 0.6, 0.8)
 
 results <- expand.grid(conditions, k, forget_prob)
 
-# run the bootstrap for each condition and wrtie to the results data frame
+# run the bootstrap for each condition and write to the results data frame
 for (i in 1:nrow(results)) {
   condition <- results[i, 1]
   k <- results[i, 2]
@@ -103,7 +94,7 @@ for (i in 1:nrow(results)) {
 
 head(results)
 
-  data <- minerva %>% filter(type == condition & minerva_k == k & forget_prob == forget_prob)
+data <- minerva %>% filter(type == condition & minerva_k == k & forget_prob == forget_prob) 
 
 
 # %%
@@ -111,18 +102,18 @@ head(results)
 
 # Descriptive Statistics -------------------------------------------------------
 
+sbert <- filter(minerva, embedding_model == "sbert")
 # plot mean rt for type facted by minerva_k, forget_prob
-plot <- minerva %>%
+plot <- sbert %>%
     filter(is_noise_embeddings == "FALSE" & is_equal_frequency == "FALSE") %>%
     #filter outliers of fitem > 3 sd from the mean
-    filter(fitem < mean(fitem, na.rm = TRUE) + 3 * sd(fitem, na.rm = TRUE) | fitem > mean(fitem, na.rm = TRUE) + 3 * sd(fitem, na.rm = TRUE)) %>%
+    # filter(fitem < mean(fitem, na.rm = TRUE) + 3 * sd(fitem, na.rm = TRUE) | fitem > mean(fitem, na.rm = TRUE) + 3 * sd(fitem, na.rm = TRUE)) %>%
     group_by(type, minerva_k, forget_prob) %>%
     summarise(mean_rt = mean(rt, na.rm = TRUE)) %>%
     ggplot(aes(x = type, y = mean_rt, fill = type)) +
     geom_bar(stat = "identity", position = "dodge") +
     labs(
-        title = "Mean Tau by Minerva K and Forget Probability",
-        subtitle = "Excluding Outliers, Noise Embeddings and Equal Frequency",
+        title = "Frequency & Semantics",
         x = "Item Type",
         y = "Tau",
         fill = "Item Type"
@@ -145,7 +136,7 @@ plot <- minerva %>%
 plot <- plot + geom_errorbar(aes(ymin = mean_rt - sd(rt, na.rm = TRUE) / sqrt(length(rt)), ymax = mean_rt + sd(rt, na.rm = TRUE) / sqrt(length(rt))), width = 0.2, position = position_dodge(0.9))
 plot
 
-ggsave("mean_rt_by_minerva_k_forget_prob_no_outliers.png", plot, width = 12, height = 8)
+ggsave("mean_rt_by_minerva_k_forget_prob.png", plot, width = 12, height = 8)
 # %%
 
 
@@ -155,11 +146,12 @@ ggsave("mean_rt_by_minerva_k_forget_prob_no_outliers.png", plot, width = 12, hei
 
 # plot mean rt for type facted by minerva_k, forget_prob with noise embeddings only
 plot <- minerva %>%
-    filter(is_noise_embeddings == "TRUE" & is_equal_frequency == "FALSE") %>%
+    filter(is_noise_embeddings == "FALSE" & is_equal_frequency == "FALSE") %>%
     group_by(type, minerva_k, forget_prob) %>%
     summarise(mean_rt = mean(rt, na.rm = TRUE)) %>%
     ggplot(aes(x = type, y = mean_rt, fill = type)) +
     geom_bar(stat = "identity", position = "dodge") +
+    geom_errorbar(stat = "summary", fun.data = mean_cl_boot, position = position_dodge(0.9)) +
     labs(
         title = "Mean Tau by Minerva K and Forget Probability",
         subtitle = "Only Noise Embeddings (no Equal Frequency)",
@@ -167,7 +159,7 @@ plot <- minerva %>%
         y = "Tau",
         fill = "Item Type"
     ) +
-    facet_grid(minerva_k ~ forget_prob) +
+    facet_grid(minerva_k ~ forget_prob, scales = "free") +
     theme_bw() +
     theme(
         title = element_text(size = 18, face = "bold"),
@@ -369,7 +361,5 @@ for (k in unique(minerva$minerva_k)) {
         bma_results[[paste(k, fp, sep = "_")]] <- summary(model)
     }
 }
-
-# %%
 
 # %%

@@ -20,12 +20,10 @@ library(tidyverse) # data wrangling
 library(skimr) # summary statistics
 library(pander) # for publication-ready tables
 library(xtable) # for latex tables
-library(patchwork) # for combining plots
+# library(patchwork) # for combining plots
 library(lme4) # for mixed effects models
-library(BMS) # for Bayes factors and Bayesian model averaging
 library(brms)
-library(fitdistrplus)
-library(ggsignif)
+
 
 # set theme for ggplot
 theme_set(theme_bw())
@@ -34,7 +32,9 @@ theme_set(theme_bw())
 options(mc.cores = parallel::detectCores())
 
 # colors
-options(ggplot2.discrete.fill = c("#00AFBB", "#E7B800", "#FC4E07"))
+# options(ggplot2.discrete.fill = c("#00AFBB", "#E7B800", "#FC4E07"))
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#646262"))
+
 options(digits = 3)
 
 # set seed for reproducibility
@@ -42,11 +42,7 @@ set.seed(0976)
 
 # %%
 
-# %%
-
-# Load Data --------------------------------------------------------------------
-
-minerva <- read_csv("minerva_full_results.csv")
+minerva <- read_csv("results\\minerva_full_results.csv")
 
 minerva <- minerva %>% dplyr::select(c(participant, item, type, verb, rt, minerva_k, forget_prob, fitem, score, is_noise_embeddings, is_equal_frequency, embedding_model)) # nolint
 
@@ -54,19 +50,20 @@ minerva <- minerva %>% dplyr::select(c(participant, item, type, verb, rt, minerv
 minerva <- minerva %>%
     mutate_at(vars(-rt, -fitem, -score, -minerva_k, -forget_prob), as.factor)
 
-# relevel factors for type
-minerva$type <- relevel(minerva$type, ref = "prod")
 
 # rename type levels using dplyr
 
 minerva$type <- dplyr::recode(minerva$type,
-    "prod" = "Productive",
+    "prod" = "Compositional",
     "collocation" = "Collocation",
     "idiom" = "Idiom"
 )
 
-# check unique values for factor variables
+# relevel factors for type
+minerva$type <- relevel(minerva$type, ref = "Compositional")
 
+
+# check unique values for factor variables
 unique(is.na(minerva$rt)) # check for missing values
 n_distinct(minerva$participant) # check unique participant
 
@@ -110,15 +107,24 @@ minerva <- minerva %>% rename(
     "Verb" = verb
 )
 
+
 # print col names
 colnames(minerva)
 
 # drop columns
 minerva <- minerva %>% dplyr::select(-c(is_noise_embeddings, is_equal_frequency))
 
-head(minerva)
+# filter out verbs with low accuracy as we did in human experiments
+minerva <- minerva %>% filter(Verb != "silence")
+minerva <- minerva %>% filter(Verb != "muzzle")
+minerva <- minerva %>% filter(Verb != "pad")
+minerva <- minerva %>% filter(Verb != "slap")
 
-# %%
+# from here on , we only deal with contextual embeddings
+minerva <- minerva %>% filter(Model == "sbert")
+
+# write to csv
+write_csv(minerva, "minerva_contextual_clean.csv")
 
 # %%
 
@@ -141,91 +147,69 @@ sprintf("Number of different forget probabilities: %s", n_forget)
 
 # %%
 
-# %%
+#  create a new df with mean tau for each item by experiment
 
-main <- minerva %>%
-    filter(Experiment == "Frequency & Semantics") %>%
-    group_by(ID) %>%
-    mutate(lambda = rexp(n = 1, 1 / 40)) %>%
-    ungroup() %>%
-    mutate(RT = rgamma(nrow(.), shape = Tau, scale = lambda))
+# tau_by_item <- minerva %>%
+#     group_by(Item, Experiment) %>%
+#     summarise(mean_tau = mean(Tau)) %>%
+#     ungroup()
 
-
-frequency <- minerva %>%
-    filter(Experiment == "Frequency-only") %>%
-    group_by(ID) %>%
-    mutate(lambda = rexp(n = 1, 1 / 40)) %>%
-    ungroup() %>%
-    mutate(RT = rgamma(nrow(.), shape = Tau, scale = lambda))
+# # pivot the df to wide format
+# tau_by_item_wide <- tau_by_item %>%
+#     pivot_wider(names_from = Experiment, values_from = mean_tau)
 
 
-semantics <- minerva %>%
-    filter(Experiment == "Semantics-only") %>%
-    group_by(ID) %>%
-    mutate(lambda = rexp(n = 1, 1 / 40)) %>%
-    ungroup() %>%
-    mutate(RT = rgamma(nrow(.), shape = Tau, scale = lambda))
+# write_csv(tau_by_item_wide, "tau_by_item_by_experiment.csv")
 
 
-null <- minerva %>%
-    filter(Experiment == "Null") %>%
-    group_by(ID) %>%
-    mutate(lambda = rexp(n = 1, 1 / 40)) %>%
-    ungroup() %>%
-    mutate(RT = rgamma(nrow(.), shape = Tau, scale = lambda))
+# plot barplot of mean tau by condition for each experiment
 
-experiments <- c("main", "frequency", "semantics", "null")
-
-# %%
-
-# %%
-
-# no_outliers <- minerva %>%
-#     filter(Frequency > quantile(Frequency, 0.25) - 1.5 * IQR(Frequency) & Frequency < quantile(Frequency, 0.75) + 1.5 * IQR(Frequency))
-
-
-# boxplot for Frequency
-# no_outliers %>%
-#     ggplot(aes(x = Condition, y = Frequency, fill = Condition)) +
-#     geom_boxplot() +
-#     theme_minimal() +
-#     labs(title = "Frequency", x = "Experiment", y = "Frequency") +
-#     theme(legend.position = "right")
-# %%
-
-# %%
-# outliers <- minerva %>%
-#     filter(Frequency < quantile(Frequency, 0.25) - 1.5 * IQR(Frequency) | Frequency > quantile(Frequency, 0.75) + 1.5 * IQR(Frequency))
-
-# # make a table of outliers by condition and frequency
-# outliers %>%
-#     group_by(Verb) %>%
-#     summarise(n_outliers = n_distinct(Condition)) %>%
-#     xtable()
+minerva %>%
+    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+    geom_text(stat = "summary", fun = mean,  aes(label = round(..y.., 1)), 
+              vjust = -1.3, size = 10, fontface = "bold") + labs(y = "Mean RT (ms)") +
+    theme_bw() +
+    theme(
+            title = element_text(size = 50, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 50, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.text = element_text(size = 40, face = "bold"),
+            # axis.text.x = element_blank(),
+            axis.text.x = element_text(angle = 0),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 45, face = "bold"),
+            legend.position = "none",
+            strip.text.x = element_text(size = 45, face = "bold"),
+            strip.text.y = element_text(size = 45, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"),
+        ) + facet_wrap(~Experiment, ncol = 4, scales = "free")
 
 # %%
 
+k99_forget08 <- bind_rows(
+    main %>% filter(K == 0.99, Forget == 0.8),
+    frequency %>% filter(K == 0.99, Forget == 0.8),
+    semantics %>% filter(K == 0.99, Forget == 0.8)
+)
+
+# boxplot
+k99_forget08 %>%
+    filter(Tau < 300) %>%
+    ggplot(aes(x = Experiment, y = Tau, fill = Condition)) +
+    geom_boxplot() +
+    theme_minimal() +
+    labs(title = "k = 0.99, forget = 0.8", x = "Condition", y = "RT") +
+    theme(legend.position = "right") +
+    facet_wrap(~Model, ncol = 2)
 
 
-
-
-# %%
-
-# k99_forget08 <- bind_rows(
-#     main %>% filter(K == 0.99, Forget == 0.8),
-#     frequency %>% filter(K == 0.99, Forget == 0.8),
-#     semantics %>% filter(K == 0.99, Forget == 0.8)
-# )
-
-# # boxplot
-# k99_forget08 %>%
-#     filter(Tau < 300) %>%
-#     ggplot(aes(x = Experiment, y = Tau, fill = Condition)) +
-#     geom_boxplot() +
-#     theme_minimal() +
-#     labs(title = "k = 0.99, forget = 0.8", x = "Condition", y = "RT") +
-#     theme(legend.position = "right") +
-#     facet_wrap(~Model, ncol = 2)
 
 # %%
 
@@ -355,7 +339,7 @@ m1 <- glmer(Tau ~ Condition + (1 | ID) + (1 | Verb),
     data = k98_forget08 %>% 
     filter(Model == "sbert") %>%
     filter(Experiment == "Frequency & Semantics"),
-    family = Gamma(link = "log"),
+    family = Gamma(link = "identity"),
     control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
 )
 summary(m1)
@@ -471,7 +455,7 @@ k99_forget06 %>%
     geom_bar(stat = "summary", fun = "mean", position = "dodge") +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25) +
     theme_minimal() +
-    labs(title = "k = 0.99, forget = 0.8", x = "Condition", y = "TAU") +
+    labs(title = "k = 0.99, forget = 0.6", x = "Condition", y = "TAU") +
     facet_wrap(~Model, ncol = 2) +
     theme(legend.position = "right")
 # %%
@@ -485,7 +469,7 @@ plot <- k99_forget06 %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    facet_grid(Experiment ~ Embedding, space = "free") +
+    facet_grid(Experiment ~ Embedding, space = "fixed", scales = "free") +
     theme_minimal() +
     labs(title = "Mean Tau per Condition (with Timeouts)", subtitle = "K = 0.99; Forget Probability = 0.6", x = "Condition", y = "Tau") +
     theme(
@@ -494,9 +478,10 @@ plot <- k99_forget06 %>%
         axis.title = element_text(size = 60, face = "bold"),
         axis.text = element_text(size = 50, face = "bold"),
         axis.text.x = element_blank(),
-        legend.title = element_text(size = 55, face = "bold"),
+        # legend.title = element_text(size = 55, face = "bold"),
+        legend.title = element_blank(),
         legend.text = element_text(size = 50, face = "bold"),
-        legend.position = "right",
+        legend.position = "bottom",
         strip.text.x = element_text(size = 50, face = "bold"),
         strip.text.y = element_text(size = 50, face = "bold"),
         strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
@@ -506,6 +491,7 @@ plot <- k99_forget06 %>%
         plot.background = element_rect(colour = "white", fill = "white")
     )
 print(plot)
+
 ggsave("plot_k99f06_with_timeouts.png", plot, width = 35, height = 30, units = "in", dpi = 300)
 
 
@@ -552,12 +538,12 @@ ggsave("plot_k99f06_with_timeouts.png", plot, width = 35, height = 30, units = "
 
 # %%
 # check how well tau fits gamma distribution
-# summary(fitdist(minerva$tau, "gamma"))
+summary(fitdist(minerva$tau, "gamma"))
 # plot(fitdist(minerva$tau, "gamma"))
 
 
-# fit1 <- brm(bf(tau ~ type),
-#             data = minerva, family = Gamma(link = "log"), cores = 6)
+fit1 <- brm(bf(RT ~ Tau, shape ~ (1 | ID)),
+    data = k99_forget08 %>% filter(ID == 1), family = Gamma(link = "identity"), cores = 2, iter = 1000, chains = 2, seed= 123)
 
 # # summary(fit1)
 

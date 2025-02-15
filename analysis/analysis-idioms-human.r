@@ -1,18 +1,15 @@
 # %%
-
-## Set-Up ---------------------------------------------------------------------
-# set current working directory
-setwd("./results")
-
+getwd()
 # load packages
 library(tidyverse) # data wrangling
+library(ggpattern) # for pattern fills
 library(skimr) # summary statistics
 library(xtable) # for latex tables
-library(patchwork) # for combining plots
+# library(patchwork) # for combining plots
 library(lme4) # for mixed effects models
-library(brms)
-library(fitdistrplus)
-library(ggsignif)
+# library(brms)
+# library(fitdistrplus)
+# library(ggsignif)
 
 # set theme for ggplot
 theme_set(theme_bw())
@@ -21,23 +18,18 @@ theme_set(theme_bw())
 options(mc.cores = parallel::detectCores())
 
 # colors
-options(ggplot2.discrete.fill = c("#00AFBB", "#E7B800", "#FC4E07", "#646262"))
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#bab9b9"))
+
+# options(ggplot2.discrete.fill = c("#00AFBB", "#E7B800", "#FC4E07", "#646262"))
 options(digits = 3)
 
 # set seed for reproducibility
 set.seed(0976)
 
 # %%
-
-
-
-# %%
-## Load Data -------------------------------------------------------------------
-
 # load data
-human <- read_csv("experiment-data.csv")
-stimuli <- read_csv("..\\data\\stimuli_idioms_clean_annotated1.csv")
-
+human <- read_csv("results\\experiment-data.csv", col_names = TRUE)
+stimuli <- read_csv("data\\stimuli_idioms_clean_annotated1.csv", col_names = TRUE)
 
 # capitalize first letter in column names of stimuli
 colnames(stimuli) <- tools::toTitleCase(colnames(stimuli))
@@ -49,6 +41,7 @@ stimuli <- stimuli %>%
 
 human <- human %>%
     dplyr::select(-c(dataType, Handedness, Vision, LanguagePathology, foldb))
+
 # rename columns
 stimuli <- stimuli %>%
     rename(
@@ -56,19 +49,45 @@ stimuli <- stimuli %>%
         Frequency = Fitem
     )
 
-colnames(human)
-
 human <- human %>% rename(Stimuli = Item)
 
 # merge data
 human <- human %>% left_join(stimuli, by = "Stimuli")
-skim(human) # only 89 IDs, should be 90 as verified on prolific
+
+# add accuracy column
+human$Accuracy <- ifelse(human$Response == human$Correct, 1, 0)
+
+
+# run glm with human RT by 1 + mean_item_Tau + (1|ID) family = gamma link = identity for each experiments 
+
+#%%
+
+human$Condition <- dplyr::recode(human$Condition,
+"Prod" = "Compositional",
+"Collocation" = "Collocation",
+"Idiom" = "Idiom",
+"Baseline" = "Baseline")
+
+# relevel factors
+human$Condition <- relevel(as.factor(human$Condition), ref = "Compositional")
+
+# reorder factor levels
+human$Condition <- factor(human$Condition, levels = c("Compositional","Collocation", "Idiom","Baseline" ))
 
 # %%
 
-# %%
+# check for missing data
+human %>%
+  group_by(ID, Fold) %>%
+    summarise(missing = sum(is.na(RT))) %>%
+    filter(missing > 10)  # 2 participants with missing data
 
-# Data Cleaning ----------------------------------------------------------------
+# 1 ID with 82 missing values from fold 3, remove and recollect data
+human <- human %>% filter(ID != "5d7ff8bcb9c215001ce3298d")
+# 1 ID with 32 missing values from fold 2, remove and recollect data
+human <- human %>% filter(ID != "5e1f1ec9debba10112ac5733")
+
+
 # find duplicates
 human %>%
     group_by(ID) %>%
@@ -76,44 +95,55 @@ human %>%
     filter(n > 164) # one duplicate ID, check fold and remove second entry
 
 dupes <- human %>%
-    filter(ID == "607ee4f932bfb9ddf3da6d83") # 2 entries for this ID
+    filter(ID == "607ee4f932bfb9ddf3da6d83") # multiple entries for this ID
 
+# check for differences
 unique(dupes$Fold) # in fold 2 and 3, removing from fold 3 and recollect data
+
+# the same participant took the test twice in fold 2 and 3, this is due to me not
+# filtering in Prolific during the second round of data collection. Therefore,
+# I will remove the second entry from fold 3.
 
 human <- human %>%
     filter(!(ID == "607ee4f932bfb9ddf3da6d83" & Fold == 3))
 
-# check for missing data
-human %>%
-    group_by(ID, Fold) %>%
-    summarise(missing = sum(is.na(RT))) %>%
-    filter(missing > 10)  # 5 participants with missing data
+# the same participant had their data saved twice in fold 2
+# i'm not sure what caused this, but I will remove the second entry
+# everything except the time-taken was the same
 
-# 1 ID with 82 missing values from fold 3, remove and recollect data
-human <- human %>% filter(ID != "5d7ff8bcb9c215001ce3298d")
-# 1 ID with 32 missing values from fold 2, remove and recollect data
-human <- human %>% filter(ID != "5e1f1ec9debba10112ac5733")
+human <- human %>%
+    filter(!(ID == "607ee4f932bfb9ddf3da6d83" & Time_taken == 360))
 
-# boxplots by participant to check for RT outliers
-human %>% ggplot(aes(x = ID, y = RT)) +
-    geom_boxplot() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-    facet_wrap(~Fold, ncol = 3, scales = "free")
+# check for duplicate rows
+human %>% filter(duplicated(human)) # no duplicates
 
+nrow(human) # 30504
 
 # count unique IDs per fold
 human %>%
     group_by(Fold) %>%
-    summarise(n = n_distinct(ID))
-# we now have 62 IDs per fold
+    summarise(n = n_distinct(ID)) #62
+
+# count unique items per fold
+human %>%
+    group_by(Fold) %>%
+    filter(Condition != "Baseline") %>%
+    summarise(n = n_distinct(Item)) # 82
+
+# count all items per fold
+human %>%
+    group_by(Fold) %>%
+    filter(Condition != "Baseline") %>%
+    summarise(n = n()) # 5084
+
 
 # final checks
 n_obs <- nrow(human)
-sprintf("Number of observations: %.0f", n_obs) # 30668
+sprintf("Number of observations: %.0f", n_obs) # 30504
 n_participants <- n_distinct(human$ID) # 186
 sprintf("Number of participants: %.0f", n_participants)
 n_obs_participant <- n_obs / n_participants # 164
-sprintf("Number of observations/participant: %.0f", n_obs_participant)
+sprintf("Number of observations/participant: %.000f", n_obs_participant)
 
 # mean age and sd
 mean_age <- mean(human$Age, na.rm = TRUE)
@@ -129,13 +159,11 @@ human %>%
     summarise(n = n_distinct(ID))
 
 # n unique items
-n_unique(human$Item) # 90
+n_distinct(human$Item) # 247 (contains NA for all Baselines)
 
-human %>% group_by(Condition) %>% summarise(n = n_distinct(Item))
-# %%
+items <- human %>% select(Item) %>% unique()
 
 # %%
-## Dealing with Outliers -------------------------------------------------------
 
 # outlier removal
 human$outliers <- NA
@@ -144,25 +172,26 @@ human$outliers <- NA
 # remove too fast RTs and NAs
 human$outliers[human$RT < 450] <- "Too fast"
 human$outliers[is.na(human$RT)] <- "Missing"
-table(human$outliers) # 9 missing values, 33 too fast
+human$outliers[human$RT >= 8000] <- "Too slow"
+table(human$outliers) # 16 missing values, 48 too fast
 
 # remove too slow RTs 3.5 SD from the mean
 mean_rt <- mean(human$RT, na.rm = TRUE)
 sd_rt <- sd(human$RT, na.rm = TRUE)
 human$outliers[human$RT > (mean_rt + 3.5 * sd_rt)] <- "Too slow"
-sum(!is.na(human$outliers))
+sum(!is.na(human$outliers)) # 454
 # percentage of outliers
 percentage_outliers <- (sum(!is.na(human$outliers)) / n_obs) * 100
 sprintf("Percentage of outliers: %.3f", percentage_outliers)
 
-
+# filter out outliers
 human <- human %>% filter(is.na(outliers))
 
-n_obs <- nrow(human) # 14704
-n_obs
+n_obs <- nrow(human) # 30050
+sprintf("Number of observations: %.0f", n_obs)
 
-# add accuracy column
-human$Accuracy <- ifelse(human$Response == human$Correct, 1, 0)
+correct_trials <- human %>% filter(Accuracy == 1)
+nrow(correct_trials) # 27429
 
 # participant means
 participant_means <- human %>%
@@ -174,14 +203,14 @@ participant_means <- human %>%
 
 # add means to df
 human <- human %>% left_join(participant_means, by = "ID")
-head(human)
-skim(human)
 
 # find IDs with low accuracy
 human %>%
     group_by(ID, Fold) %>%
     summarise(mean_accuracy = mean(Accuracy)) %>%
     filter(mean_accuracy < 0.7)
+
+# there are no participants with accuracy <50%, moving on
 
 # item means
 item_means <- human %>%
@@ -204,16 +233,14 @@ bad_items <- human %>%
 
 bad_items
 
-skim(human)
+# there are 4 items with <50%V accuracy,
+# all 4 have denominal verbs
+# 3 are in the collocation condition
+# 1 is in the idiomatic condition
+# we'll run analyses with and without these items
+# but we'll report the results without these items
 
-# %%
-
-# %%
-# filter out participants with low accuracy
-# human <- human %>% filter(mAccuracy >= 0.7)
-
-# # filter out items with low accuracy
-# human <- human %>% filter(iAccuracy >= 0.7)
+# comment out the following lines to keep these items
 
 # filter out verbs with low accuracy
 human <- human %>% filter(Verb != "silence")
@@ -221,62 +248,79 @@ human <- human %>% filter(Verb != "muzzle")
 human <- human %>% filter(Verb != "pad")
 human <- human %>% filter(Verb != "slap")
 
-n_unique(human$Item)
+# filter out baselines
+human <- human %>% filter(Condition != "Baseline")
+nrow(human) # 14348
+human %>% filter(Accuracy == 1) %>% nrow() # 13369
 
+
+mean(human$RT, digits = 3) # 1000
+sd(human$RT) # 300
 # %%
 
-# %%
-## Plots for Rts
+# descriptive statistics by condition
+human %>%
+    group_by(Condition) %>%
+    filter(Accuracy == 1) %>% # only correct trials
+    summarise(
+        mean_RT = mean(RT, na.rm = TRUE, digits = 3),
+        sd_RT = sd(RT, na.rm = TRUE),
+        min_RT = min(RT, na.rm = TRUE),
+        max_RT = max(RT, na.rm = TRUE)
+    ) %>% xtable(digits = 3)
 
-# relevel factors
-human$Condition <- relevel(as.factor(human$Condition), ref = "Prod")
+# descriptive statistics by condition for accuracy
+human %>%
+    group_by(Condition) %>%
+    summarise(
+        mean_accuracy = mean(Accuracy, na.rm = TRUE, digits = 3),
+        sd_accuracy = sd(Accuracy, na.rm = TRUE),
+        min_accuracy = min(Accuracy, na.rm = TRUE),
+        max_accuracy = max(Accuracy, na.rm = TRUE)
+    ) %>% xtable(digits = 3)
 
-human$Condition <- dplyr::recode(human$Condition,
-"Prod" = "Productive",
-"Collocation" = "Collocation",
-"Idiom" = "Idiom",
-"Baseline" = "Baseline")
+
+rt_summary <- human %>%
+    filter(Accuracy == 1) %>%
+    summarise(min_RT = min(RT), max_RT = max(RT))
 
 
 # barplots for RTs by condition
-human %>%
+plot <- human %>%
     filter(Accuracy == 1) %>% # only correct trials
+    filter(Condition != "Baseline") %>% # exclude baselines
     ggplot(aes(x = Condition, y = RT, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(title = "Human Judgements", y = "Mean RT (ms)", x = "Condition") +
+    geom_text(stat = "summary", fun = mean,  aes(label = round(..y.., 1)), 
+              vjust = -1.3, size = 10, fontface = "bold") + labs(y = "Mean RT (ms)") +
+    theme_bw() +
     theme(
-        title = element_text(size = 40, face = "bold"),
-        axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
-        axis.title = element_text(size = 40, face = "bold"),
-        axis.text = element_text(size = 30, face = "bold"),
-        legend.title = element_text(size = 35, face = "bold"),
-        legend.text = element_text(size = 30, face = "bold"),
-        legend.position = "right",
-        strip.text.x = element_text(size = 30, face = "bold"),
-        strip.text.y = element_text(size = 30, face = "bold"),
-        strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
-        panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
-        panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
-        panel.spacing = unit(0, "points"),
-        plot.background = element_rect(colour = "white", fill = "white")
-    )
+            title = element_text(size = 50, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 50, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.text = element_text(size = 40, face = "bold"),
+            # axis.text.x = element_blank(),
+            axis.text.x = element_text(angle = 0),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 45, face = "bold"),
+            legend.position = "none",
+            strip.text.x = element_text(size = 45, face = "bold"),
+            strip.text.y = element_text(size = 45, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"),
+        )
 
-ggsave("human_rt_barplot.png", width = 20, height = 15, units = "in")
-# boxplots for RTs by condition
-human %>%
-    filter(Accuracy == 1) %>% # only correct trials
-    ggplot(aes(x = Condition, y = RT)) +
-    geom_boxplot() +
-    labs(y = "RT (ms)", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    plot <- plot  + coord_cartesian(ylim = c(500, 1100))
 
+plot
 
-# # rename prod to productive
-# human$Condition <- ifelse(human$Condition == "Prod", "Productive", human$Condition)
+ggsave( "human_rt_plot.png", plot, width = 15, height = 10, units = "in", dpi = 300)
 
-# # relevel factor for mixed effects model
-# human$Condition <- relevel(as.factor(human$Condition), ref = "Idiom")
 
 # %%
 
@@ -287,13 +331,17 @@ human <- human %>% filter(Verb != "silence")
 human <- human %>% filter(Verb != "muzzle")
 human <- human %>% filter(Verb != "pad")
 human <- human %>% filter(Verb != "slap")
+
+# set reference level for Condition to idiom
+
+human$Condition <- relevel(as.factor(human$Condition), ref = "Idiom")
 
 # null model
 glmm_rt_null <- glmer(RT ~ 1 + (1 | ID) + (1 | Verb),
     data = human %>%
         filter(Condition != "Baseline") %>%
         filter(Accuracy == 1),
-    family = Gamma(link = "log")
+    family = Gamma(link = "identity")
 )
 
 summary(glmm_rt_null)
@@ -303,72 +351,86 @@ glmm_rt <- glmer(RT ~ Condition + (1 | ID) + (1 | Verb),
     data = human %>%
         filter(Condition != "Baseline") %>%
         filter(Accuracy == 1),
-    family = Gamma(link = "log")
+    family = Gamma(link = "identity")
 )
 
 summary(glmm_rt)
+
 
 glmm_rt_max <- glmer(RT ~ Condition + scale(Frequency) + (1 | ID) + (1 | Verb),
     data = human %>%
          filter(Condition != "Baseline") %>%
         filter(Accuracy == 1),
-    family = Gamma(link = "log")
+    family = Gamma(link = "identity")
 )
-
 
 summary(glmm_rt_max)
 anova(glmm_rt_null, glmm_rt, glmm_rt_max)
 
-# power_glmm <- simr::powerSim(glmm_rt)
+# use stargazer to create a latex table
 
+stargazer::stargazer(glmm_rt_null, glmm_rt, glmm_rt_max, type = "latex", title = "RTs with low acc items", align = TRUE, label = "tab:rt", header = TRUE, digits = 3)
 
 
 # %%
+# accuracy model
 
+# null model
+
+glmer_accuracy_null <- glmer(Accuracy ~ 1 + (1 | ID) + (1 | Verb),
+    data = human,
+    family = binomial(link = "logit")
+)
+
+summary(glmer_accuracy_null)
+
+# run a glmm with binomial distribution
+glmer_accuracy <- glmer(Accuracy ~ Condition + (1 | ID) + (1 | Verb),
+    data = human,
+    family = binomial(link = "logit")
+)
+
+summary(glmer_accuracy)
+
+glmer_accuracy_max <- glmer(Accuracy ~ Condition + scale(Frequency) + (1 | ID) + (1 | Verb),
+    data = human,
+    family = binomial(link = "logit")
+)
+
+summary(glmer_accuracy_max)
+
+anova(glmer_accuracy_null, glmer_accuracy, glmer_accuracy_max)
 
 # %%
 
+# corr with taus
+
+taus <- read_csv("results\\mean_tau_by_item.csv", col_names = TRUE)
+
+# add taus to human
+human <- human %>% left_join(taus, by = "Item") 
+
+head(human$Mean_Tau.x)
+is.na(human$Mean_Tau.x) %>% sum() # 0
+
+
+# correlation between RT and tau
+cor.test(human$iRT, human$Mean_Tau.x, method = "kendall")
+
+# correlation between RT and tau by condition
 human %>%
-    filter(Condition != "Baseline") %>%
-    filter(Response == "y") %>% # only correct trials
-    ggplot(aes(x = Condition, y = RT)) +
-    geom_boxplot() +
-    labs(y = "RT (ms)", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-human %>%
-    filter(Condition != "Baseline") %>%
-    filter(RT >= 2000) %>% # only correct trials
-    ggplot(aes(x = Condition, y = RT)) +
-    geom_boxplot() +
-    labs(y = "RT (ms)", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-# barplots for RTs by condition
-human %>%
-    filter(Condition != "Baseline") %>%
-    filter(Accuracy == 1) %>% # only correct trials
-    ggplot(aes(x = Condition, y = RT)) +
-    geom_bar(stat = "summary", fun = "mean") +
-    geom_errorbar(stat = "summary", fun.data = mean_cl_boot, width = 0.2) +
-    labs(y = "Mean RT (ms)", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    group_by(Condition) %>%
+    summarise(correlation = cor(iRT, Mean_Tau.x, method = "kendall"))
 
 
-# boxplots for RTs by condition
-human %>%
-    filter(Condition != "Baseline") %>%
-    filter(Accuracy == 1) %>%
-    filter(RT < 2000) %>% # only correct trials
-    ggplot(aes(x = Condition, y = RT)) +
-    geom_boxplot() +
-    labs(y = "RT (ms)", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-# %%
+# model with tau
+glmm_rt_tau <- glmer(RT ~ 1 + Mean_Tau.x + (1 | ID) + (1 | Verb),
+    data = human %>%
+        filter(Accuracy == 1),
+    family = Gamma(link = "identity")
+)
 
-
-# corr between acceptability and fitem
-
+summary(glmm_rt_tau)
 # %% 
 
 # Frequency Stats
@@ -376,19 +438,13 @@ human %>%
 human %>%
     group_by(Condition) %>%
     summarise(mean_frequency = mean(Frequency, na.rm = TRUE),
-        sd_frequency = sd(Frequency, na.rm = TRUE))
+        sd_frequency = sd(Frequency, na.rm = TRUE),
+        min_frequency = min(Frequency, na.rm = TRUE),
+        max_frequency = max(Frequency, na.rm = TRUE)) %>% xtable(digits = 3)
 
 # anova for frequency
 aov_frequency <- aov(Frequency ~ Condition, data = human)
 summary(aov_frequency)
 
 emmeans::emmeans(aov_frequency, pairwise ~ Condition)
-
-#boxplot for frequency by condition
-human %>%
-    ggplot(aes(x = Condition, y = log10(Frequency))) +
-    geom_boxplot() +
-    labs(y = "Frequency", x = "Condition") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
 
