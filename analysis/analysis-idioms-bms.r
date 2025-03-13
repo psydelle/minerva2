@@ -119,6 +119,8 @@ minerva <- minerva %>% filter(Verb != "silence")
 minerva <- minerva %>% filter(Verb != "muzzle")
 minerva <- minerva %>% filter(Verb != "pad")
 minerva <- minerva %>% filter(Verb != "slap")
+minerva <- minerva %>% filter(Verb != "diffuse") # wrong spelling
+minerva <- minerva %>% filter(Verb != "break") # too high freq
 
 # from here on , we only deal with contextual embeddings
 minerva <- minerva %>% filter(Model == "sbert")
@@ -287,28 +289,32 @@ minerva %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    geom_text(stat = "summary", fun = mean,  aes(label = round(..y.., 1)), 
-              vjust = -1.3, size = 10, fontface = "bold") + labs(y = "Mean RT (ms)") +
+    geom_text(
+        stat = "summary", fun = mean, aes(label = round(..y.., 1)),
+        vjust = -1.3, size = 10, fontface = "bold"
+    ) +
+    labs(y = "Mean RT (ms)") +
     theme_bw() +
     theme(
-            title = element_text(size = 50, face = "bold"),
-            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
-            axis.title = element_text(size = 50, face = "bold"),
-            axis.title.x = element_blank(),
-            axis.text = element_text(size = 40, face = "bold"),
-            # axis.text.x = element_blank(),
-            axis.text.x = element_text(angle = 0),
-            legend.title = element_blank(),
-            legend.text = element_text(size = 45, face = "bold"),
-            legend.position = "none",
-            strip.text.x = element_text(size = 45, face = "bold"),
-            strip.text.y = element_text(size = 45, face = "bold"),
-            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
-            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
-            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
-            panel.spacing = unit(0, "points"),
-            plot.background = element_rect(colour = "white", fill = "white"),
-        ) + facet_wrap(~Experiment, ncol = 4, scales = "free")
+        title = element_text(size = 50, face = "bold"),
+        axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+        axis.title = element_text(size = 50, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.text = element_text(size = 40, face = "bold"),
+        # axis.text.x = element_blank(),
+        axis.text.x = element_text(angle = 0),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 45, face = "bold"),
+        legend.position = "none",
+        strip.text.x = element_text(size = 45, face = "bold"),
+        strip.text.y = element_text(size = 45, face = "bold"),
+        strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+        panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+        panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+        panel.spacing = unit(0, "points"),
+        plot.background = element_rect(colour = "white", fill = "white"),
+    ) +
+    facet_wrap(~Experiment, ncol = 4, scales = "free")
 
 # %%
 
@@ -348,11 +354,11 @@ timeouts
 # plot of number of timeouts per condition for each k and forget probability combination
 for (i in unique(timeouts$Experiment)) {
     plot <- timeouts %>%
-    filter(K == 0.99, Forget == 0.6) %>%
+        filter(K == 0.99, Forget == 0.6) %>%
         filter(Experiment == i) %>%
         ggplot(aes(x = Embedding, y = n_timeouts, fill = Condition)) +
-    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
-    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+        geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+        geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
         theme_minimal() +
         labs(title = paste0("Number of Timeouts per Condition"), subtitle = i, x = "Embedding Type", y = "Number of Timeouts") +
         facet_grid(K ~ Forget, space = "free") +
@@ -435,7 +441,7 @@ k98_forget08 %>%
 # bar plot with 95% confidence interval
 
 k98_forget08 %>%
-filter(Tau < 300) %>%
+    filter(Tau < 300) %>%
     ggplot(aes(x = Experiment, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge") +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25) +
@@ -455,9 +461,9 @@ filter(Tau < 300) %>%
 k98_forget08$Condition <- relevel(k98_forget08$Condition, ref = "Idiom")
 
 m1 <- glmer(Tau ~ Condition + (1 | ID) + (1 | Verb),
-    data = k98_forget08 %>% 
-    filter(Model == "sbert") %>%
-    filter(Experiment == "Frequency & Semantics"),
+    data = k98_forget08 %>%
+        filter(Model == "sbert") %>%
+        filter(Experiment == "Frequency & Semantics"),
     family = Gamma(link = "identity"),
     control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
 )
@@ -662,7 +668,8 @@ summary(fitdist(minerva$tau, "gamma"))
 
 
 fit1 <- brm(bf(RT ~ Tau, shape ~ (1 | ID)),
-    data = k99_forget08 %>% filter(ID == 1), family = Gamma(link = "identity"), cores = 2, iter = 1000, chains = 2, seed= 123)
+    data = k99_forget08 %>% filter(ID == 1), family = Gamma(link = "identity"), cores = 2, iter = 1000, chains = 2, seed = 123
+)
 
 # # summary(fit1)
 

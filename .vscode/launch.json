@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Run one experiment",
             "type": "python",
@@ -73,6 +74,22 @@
                 "data/stimuli_idioms_clean.csv",
                 "-o",
                 "data/stimuli_idioms_kwics.json",
+            ]
+        },
+        {
+            "name": "ProbMods",
+            "type": "python",
+            "request": "launch",
+            "program": "src/probability_models.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "-f",
+                "data/stimuli_idioms_clean.csv",
+                "-o",
+                "data/stimuli_idioms_kwics.json",
+                "-p",
+                "nouns"
             ]
         }
 

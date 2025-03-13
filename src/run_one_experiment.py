@@ -198,7 +198,7 @@ class AttentionMinerva2(Minerva2):
     def echo(self, probe, tau=1.0):
         activation = self.activate(probe, tau)
         # return torch.tensordot(activation, self.Mat, dims=([0], [0]))
-        return activation @ self.Mat
+        return activation @ self.Mat # torch.matmul(activation, self.Mat)
 
     def recognize(
         self, probe, tau=1.0, k=0.955, maxiter=450
@@ -274,7 +274,6 @@ def get_embeddings(
 
     return colloc2BERT
 
-
 ##-----------------------------------------------------------------------------##
 
 
@@ -291,6 +290,7 @@ def run_iteration(
     minerva_k,
     minerva_max_iter,
 ):
+    
     # print(f"\nSeed {s}\n")
     random_generator = random.Random(s)
     torch_generator = torch.Generator().manual_seed(s)
@@ -363,7 +363,7 @@ def run_iteration(
 
     if os.environ.get("MINERVA_DEBUG"):
         DEBUG_N = 10
-        logging.warn(f"DEBUG MODE: only using first {DEBUG_N} collocations")
+        logging.warn(f"DEBUG MODE: only using first {DEBUG_N} items")
         items = list(colloc_embeddings.items())[:DEBUG_N]
     else:
         items = colloc_embeddings.items()
