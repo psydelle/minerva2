@@ -286,6 +286,7 @@ def run_iteration_general(
     minerva_k,
     num_epochs=100,
     batch_size=8,
+    hidden_size=100,
     wandb_group_name="hopfield-general-experiment",
 ):
     """Run training for one participant, using the general Modern Hopfield model.
@@ -309,9 +310,9 @@ def run_iteration_general(
     colloc_bert_embeddings = torch.stack(df["vec"].tolist()).to("cpu")
     # normalize the embeddings to standard normal
     # NEW: remove normalization
-    # colloc_bert_embeddings = (
-    #     colloc_bert_embeddings - colloc_bert_embeddings.mean()
-    # ) / colloc_bert_embeddings.std()
+    colloc_bert_embeddings = (
+        colloc_bert_embeddings - colloc_bert_embeddings.mean()
+    ) / colloc_bert_embeddings.std()
     # sample from the collocations to make a M x 768 matrix
     n_items = len(colloc_bert_embeddings)
     sample_k = M - n_items
@@ -349,7 +350,6 @@ def run_iteration_general(
     noisy_mem = noisy_mem.to(device)
 
     beta = 1.0  # Set a default float value for beta for wandb compatibility
-    hidden_size = 100
     # Pass a group name for wandb grouping (e.g., experiment label or run type)
     wandb_run = wandb.init(
         project="hopfield-experiments",
@@ -489,6 +489,7 @@ def run_experiment(
     do_concat_tokens=False,
     avg_last_n_layers=1,
     num_epochs=100,
+    hidden_size=100,
     batch_size=8,
     label=None,
 ):
@@ -592,6 +593,7 @@ def run_experiment(
             minerva_k,
             num_epochs=num_epochs,
             batch_size=batch_size,
+            hidden_size=hidden_size,
             wandb_group_name=wandb_group_name,
         )
         for p, s in enumerate(participant_seeds)
@@ -715,6 +717,12 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
+        "--hidden_size",
+        help="Hidden size of the Hopfield network",
+        default=100,
+        type=int,
+    )
+    parser.add_argument(
         "--batch_size",
         help="Batch size to use for training",
         default=8,
@@ -754,6 +762,7 @@ if __name__ == "__main__":
         do_concat_tokens=args.concat_tokens,
         avg_last_n_layers=args.avg_last_n_layers,
         num_epochs=args.num_epochs,
+        hidden_size=args.hidden_size,
         batch_size=args.batch_size,
         label=args.label,
     )
