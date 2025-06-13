@@ -33,6 +33,10 @@
                 "0.99",
                 "--avg_last_n_layers",
                 "1",
+                "--batch_size",
+                "8",
+                "--num_epochs",
+                "10"
                 // "--dry_run_dump"
             ]
         },

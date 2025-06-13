@@ -285,6 +285,7 @@ def run_iteration_general(
     forget_prob,
     minerva_k,
     num_epochs=100,
+    batch_size=8,
     wandb_group_name="hopfield-general-experiment",
 ):
     """Run training for one participant, using the general Modern Hopfield model.
@@ -360,6 +361,7 @@ def run_iteration_general(
             "participant": p + 1,
             "seed": s,
             "num_epochs": num_epochs,
+            "batch_size": batch_size,
             "device": str(device),
             "M": M,
             "forget_prob": forget_prob,
@@ -387,7 +389,6 @@ def run_iteration_general(
 
     # create a data loader for the training data
     train_dataset = torch.utils.data.TensorDataset(train_x, train_y)
-    batch_size = 8
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -487,6 +488,8 @@ def run_experiment(
     num_workers=1,
     do_concat_tokens=False,
     avg_last_n_layers=1,
+    num_epochs=100,
+    batch_size=8,
     label=None,
 ):
     ## read in the dataset
@@ -587,6 +590,8 @@ def run_experiment(
             embed_dim,
             forget_prob,
             minerva_k,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
             wandb_group_name=wandb_group_name,
         )
         for p, s in enumerate(participant_seeds)
@@ -704,6 +709,18 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
+        "--num_epochs",
+        help="Number of epochs to train for",
+        default=100,
+        type=int,
+    )
+    parser.add_argument(
+        "--batch_size",
+        help="Batch size to use for training",
+        default=8,
+        type=int,
+    )
+    parser.add_argument(
         "--label",
         help="Arbitrary label to append to all files created",
         default=None,
@@ -736,6 +753,8 @@ if __name__ == "__main__":
         num_workers=args.num_workers,
         do_concat_tokens=args.concat_tokens,
         avg_last_n_layers=args.avg_last_n_layers,
+        num_epochs=args.num_epochs,
+        batch_size=args.batch_size,
         label=args.label,
     )
 
