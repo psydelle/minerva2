@@ -17,3 +17,4 @@ dependencies:
   - pip:
     - python-dotenv
     - flair[word-embeddings]
+    - git+https://github.com/ml-jku/hopfield-layers

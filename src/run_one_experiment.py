@@ -221,7 +221,7 @@ def get_embeddings(
 ):
     colloc2BERT = dict()
 
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.has_mps else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_built() else "cpu"
 
     if model_name == "sbert":
         # set up the model and tokenizer for SBERT embeddings
@@ -290,7 +290,7 @@ def run_iteration(
     minerva_k,
     minerva_max_iter,
 ):
-    
+
     # print(f"\nSeed {s}\n")
     random_generator = random.Random(s)
     torch_generator = torch.Generator().manual_seed(s)
@@ -381,8 +381,8 @@ def run_iteration(
                 agg_activations[i] = activations[where].mean()
             return agg_activations
 
-        activations_0.detach().cpu(),
-        activations_tau.detach().cpu(),
+        activations_0 = activations_0.detach().cpu()
+        activations_tau = activations_tau.detach().cpu()
 
         output.append(
             [
