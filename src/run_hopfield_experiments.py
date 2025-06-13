@@ -21,8 +21,16 @@ import wandb.data_types  # Weights and Biases for experiment tracking
 from run_one_experiment import get_embeddings
 from hflayers import Hopfield, HopfieldLayer
 
+
 class HfModel(torch.nn.Module):
-    def __init__(self, embed_dim: int, hidden_size: int, beta: float, wandb_run, stored_patterns: Optional[torch.Tensor] = None):
+    def __init__(
+        self,
+        embed_dim: int,
+        hidden_size: int,
+        beta: float,
+        wandb_run,
+        stored_patterns: Optional[torch.Tensor] = None,
+    ):
         super(HfModel, self).__init__()
         self.wandb_run = wandb_run
 
@@ -38,7 +46,6 @@ class HfModel(torch.nn.Module):
         else:
             # learn stored patterns, i.e., "lookup table"
             pass
-
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
@@ -59,7 +66,9 @@ class HfModel(torch.nn.Module):
 
         return H
 
-    def calculate_retrieval_failures(self, input: torch.Tensor, target: torch.Tensor, threshold: float) -> Tuple[torch.Tensor, torch.Tensor]:
+    def calculate_retrieval_failures(
+        self, input: torch.Tensor, target: torch.Tensor, threshold: float
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute whether similarity between input and target is above a certain threshold.
 
@@ -72,11 +81,17 @@ class HfModel(torch.nn.Module):
         Y_hat = self.forward(input)
         # Compute similarity between input and target.
         similarity = torch.nn.functional.cosine_similarity(Y_hat, target, dim=-1)
-        assert similarity.shape == input.shape[:-1], f"Expected similarity shape {input.shape[:-1]}, got {similarity.shape}"
+        assert (
+            similarity.shape == input.shape[:-1]
+        ), f"Expected similarity shape {input.shape[:-1]}, got {similarity.shape}"
         # Compute error based on threshold.
-        error = torch.where(similarity > threshold, torch.tensor(0.0, device=input.device), torch.tensor(1.0, device=input.device))
+        error = torch.where(
+            similarity > threshold,
+            torch.tensor(0.0, device=input.device),
+            torch.tensor(1.0, device=input.device),
+        )
 
-        return error, Y_hat
+        return error, similarity, Y_hat
 
     def calculate_objective(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -94,11 +109,10 @@ class HfModel(torch.nn.Module):
 
         return loss
 
-def train_epoch(network: HfModel,
-                optimiser: AdamW,
-                data_loader: DataLoader,
-                threshold: float
-               ) -> Tuple[float, float]:
+
+def train_epoch(
+    network: HfModel, optimiser: AdamW, data_loader: DataLoader, threshold: float
+) -> Tuple[float, float]:
     """
     Execute one training epoch.
 
@@ -123,7 +137,9 @@ def train_epoch(network: HfModel,
         optimiser.step()
 
         # Compute performance measures of current model.
-        item_failures, item_predictions = network.calculate_retrieval_failures(data, target, threshold=threshold)
+        item_failures, _, _ = network.calculate_retrieval_failures(
+            data, target, threshold=threshold
+        )
         failures.append(item_failures.detach().sum().item())
         losses.append(loss.detach().item())
 
@@ -131,10 +147,9 @@ def train_epoch(network: HfModel,
     return sum(losses) / len(losses), sum(failures) / len(failures)
 
 
-def eval_iter(network: HfModel,
-              data_loader: DataLoader,
-              threshold: float
-             ) -> Tuple[float, float]:
+def eval_iter(
+    network: HfModel, eval_x: torch.Tensor, eval_y: torch.Tensor, threshold: float
+) -> Tuple[float, float, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Evaluate the current model.
 
@@ -146,64 +161,86 @@ def eval_iter(network: HfModel,
     device = next(network.parameters()).device
     with torch.no_grad():
         losses, failures = [], []
-        for data, target in data_loader:
-            data, target = data.to(device=device), target.to(device=device)
 
-            # Process data by Hopfield-based network.
-            loss = network.calculate_objective(data, target)
+        # Move data to the correct device.
+        eval_x, eval_y = eval_x.to(device=device), eval_y.to(device=device)
 
-            # Compute performance measures of current model.
-            item_failures, item_predictions = network.calculate_retrieval_failures(data, target, threshold=threshold)
-            failures.append(item_failures.detach().sum().item())
-            losses.append(loss.detach().item())
+        # Process data by Hopfield-based network.
+        loss = network.calculate_objective(eval_x, eval_y)
 
-        # Report progress of validation procedure.
-        return sum(losses) / len(losses), sum(failures) / len(failures)
+        # Compute performance measures of current model.
+        item_failures, item_sim, item_predictions = network.calculate_retrieval_failures(
+            eval_x, eval_y, threshold=threshold
+        )
+        failures.append(item_failures.detach().sum().item())
+        losses.append(loss.detach().item())
 
-def operate(network: HfModel,
-            optimiser: AdamW,
-            data_loader_train: DataLoader,
-            data_loader_eval: DataLoader,
-            num_epochs: int,
-            threshold: float
-           ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    # Report progress of validation procedure.
+    return sum(losses) / len(losses), sum(failures) / len(failures), item_failures, item_sim, item_predictions
+
+
+def operate(
+    network: HfModel,
+    optimiser: AdamW,
+    data_loader_train: DataLoader,
+    eval_data: Tuple[torch.Tensor, torch.Tensor, pd.DataFrame],
+    num_epochs: int,
+    threshold: float,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Train the specified network by gradient descent using backpropagation.
 
     :param network: network instance to train
     :param optimiser: optimiser instance responsible for updating network parameters
     :param data_loader_train: data loader instance providing training data
-    :param data_loader_eval: data loader instance providing validation data
+    :param eval_dataset: dataset instance providing validation data
+    :param eval_df: dataframe containing evaluation metadata (e.g., item types)
     :param num_epochs: amount of epochs to train
     :return: data frame comprising training as well as evaluation performance
     """
-    losses, failures = {r'train': [], r'eval': []}, {r'train': [], r'eval': []}
+    losses, failures = {r"train": [], r"eval": []}, {r"train": [], r"eval": []}
     for epoch in range(num_epochs):
         # Train network.
-        performance = train_epoch(network, optimiser, data_loader_train, threshold=threshold)
-        losses[r'train'].append(performance[0])
-        failures[r'train'].append(performance[1])
-        network.wandb_run.log({
-                'epoch': epoch,
-                'train/loss': performance[0],
-                'train/failures': performance[1],
-            })
+        t_loss, t_fails = train_epoch(network, optimiser, data_loader_train, threshold=threshold)
+        losses[r"train"].append(t_loss)
+        failures[r"train"].append(t_fails)
+        network.wandb_run.log(
+            {
+                "epoch": epoch,
+                "train/loss": t_loss,
+                "train/failures": t_fails,
+            }
+        )
         # Evaluate current model.
-        performance = eval_iter(network, data_loader_eval, threshold=threshold)
-        losses[r'eval'].append(performance[0])
-        failures[r'eval'].append(performance[1])
-        network.wandb_run.log({
-                'epoch': epoch,
-                'eval/loss': performance[0],
-                'eval/failures': performance[1],
-            })
+        eval_x, eval_y, eval_df = eval_data
+        eval_df = eval_df.copy()
+        e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(network, eval_x, eval_y, threshold=threshold)
+        # eval_df = eval_df.reset_index(drop=True)
+        eval_df["is_failure"] = item_failures.detach().cpu().numpy()
+        eval_df["sim_to_correct"] = item_sim.detach().cpu().numpy()
+        # eval_df["item_predictions"] = [p.tolist() for p in item_predictions.detach().cpu()]
+        losses[r"eval"].append(e_loss)
+        failures[r"eval"].append(e_fails)
+        network.wandb_run.log(
+            {
+                "epoch": epoch,
+                "eval/loss": e_loss,
+                "eval/failures": e_fails,
+                "eval/fail_per_type": eval_df.groupby("type")["is_failure"].sum().to_dict(),
+                "eval/item_meta": wandb.Table(
+                    columns=["item", "type", "verb", "noun", "is_failure", "sim_to_correct"],
+                    data=eval_df[["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]].values.tolist()
+                ),
+            }
+        )
         print(
-            f"Epoch {epoch} | Train Loss: {losses[r'train'][-1]:.4f} | Train Failures: {failures[r'train'][-1]:.4f} | Eval Loss: {losses[r'eval'][-1]:.4f} | Eval Failures: {failures[r'eval'][-1]:.4f}"
+            f"Epoch {epoch} | Train Loss: {t_loss:.4f} | Train Failures: {t_fails:.4f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.4f}"
         )
     network.wandb_run.finish()
 
     # Report progress of training and validation procedures.
     return pd.DataFrame(losses), pd.DataFrame(failures)
+
 
 def run_iteration_lookup(
     p,
@@ -229,7 +266,7 @@ def run_iteration_general(
     p,
     s,
     device,
-    colloc_embeddings,
+    df,  # now the full dataframe with embeddings and metadata
     norm_freq_en,
     do_equal_frequency,
     M,
@@ -249,16 +286,19 @@ def run_iteration_general(
     random_generator = random.Random(s)
     torch_generator = torch.Generator().manual_seed(s)
 
-    # stack the embeddings into a tensor
-    colloc_bert_embeddings = torch.stack([c["vec"] for c in colloc_embeddings.values()]).to("cpu")
+    # Use the dataframe to get all item info and embeddings
+    if os.environ.get("MINERVA_DEBUG"):
+        DEBUG_N = 10
+        logging.warning(f"DEBUG MODE: only using first {DEBUG_N} collocations")
+        df = df.iloc[:DEBUG_N]
+        norm_freq_en = norm_freq_en[:DEBUG_N]
 
+    # stack the embeddings into a tensor
+    colloc_bert_embeddings = torch.stack(df["vec"].tolist()).to("cpu")
     # normalize the embeddings to standard normal
-    # TODO: why does normalizing per dimension produce drastically different results?
-    # specifically, if norm by dim here and applying non-normed noise
     colloc_bert_embeddings = (
         colloc_bert_embeddings - colloc_bert_embeddings.mean()
     ) / colloc_bert_embeddings.std()
-
     # sample from the collocations to make a M x 768 matrix
     n_items = len(colloc_bert_embeddings)
     sample_k = M - n_items
@@ -314,7 +354,7 @@ def run_iteration_general(
             "minerva_k": minerva_k,
             "do_equal_frequency": do_equal_frequency,
         },
-        reinit="create_new"
+        reinit="create_new",
     )
 
     hopfield = HfModel(
@@ -325,18 +365,10 @@ def run_iteration_general(
         stored_patterns=noisy_mem,  # use the noisy memory matrix as the stored patterns
     ).to(device)
 
-    output = []  # initialize an empty list to store the output
-
-    if os.environ.get("MINERVA_DEBUG"):
-        DEBUG_N = 10
-        logging.warning(f"DEBUG MODE: only using first {DEBUG_N} collocations")
-        items = list(colloc_embeddings.items())[:DEBUG_N]
-    else:
-        items = colloc_embeddings.items()
+    # output = []  # initialize an empty list to store the output
 
     # stack the embeddings into a tensor
-    train_x = torch.stack([data["vec"] for _, data in items])
-    train_x.unsqueeze_(1)  # add a sequence length dimension
+    train_x = colloc_bert_embeddings.unsqueeze_(1)  # add a sequence length dimension
     train_y = train_x.clone()
 
     optimiser = AdamW(params=hopfield.parameters(), lr=5e-4, weight_decay=1e-4)
@@ -353,16 +385,7 @@ def run_iteration_general(
         # persistent_workers=True,
     )
     # create a data loader for the validation data
-    eval_dataset = torch.utils.data.TensorDataset(train_x, train_y)
-    eval_loader = DataLoader(
-        eval_dataset,
-        batch_size=32,
-        shuffle=False,
-        num_workers=0,
-        generator=torch_generator,
-        # pin_memory=True,
-        # persistent_workers=True,
-    )
+    eval_data = (train_x, train_y, df.drop(columns=["vec"]))
 
     print(
         f"Participant {p+1} | Seed {s} | Running on {device} | Training with {len(train_x)} samples, {len(train_y)} eval samples"
@@ -372,12 +395,11 @@ def run_iteration_general(
         network=hopfield,
         optimiser=optimiser,
         data_loader_train=train_loader,
-        data_loader_eval=eval_loader,
+        eval_data=eval_data,
         num_epochs=num_epochs,
-        threshold=minerva_k
+        threshold=minerva_k,
     )
     print(losses, failures)
-
 
     # for item, data in items:
     #     vec = data["vec"]
@@ -472,12 +494,12 @@ def run_experiment(
         with open(embeddings_cache_filename, "wb") as colloc2BERTfile:
             pickle.dump(colloc_embeddings, colloc2BERTfile)
         print("Dictionary written to file\n")
-
     else:
         # get the previously calculated embeddings from the file in which they were stored
         with open(embeddings_cache_filename, "rb") as colloc2BERTfile:
             colloc_embeddings = pickle.load(colloc2BERTfile)
         print(f"Read from file {embeddings_cache_filename}")
+        # Add embedding vectors to the dataframe for each item
 
     embed_dim = 384 if embedding_model == "sbert" else 300
     if do_concat_tokens:
@@ -493,6 +515,14 @@ def run_experiment(
 
         for item in colloc_embeddings:
             colloc_embeddings[item]["vec"].data = torch.randn(embed_dim) * noise_stds + noise_means
+
+    colloc_embeddings = [{"item": item, **d} for item, d in colloc_embeddings.items()]
+    # join the embeddings to the dataframe
+    df = df.join(
+        pd.DataFrame(colloc_embeddings).set_index("item"),
+        on="item",
+        how="left",
+    )
 
     participant_seeds = []
     for _ in range(num_participants):
@@ -526,14 +556,14 @@ def run_experiment(
             p,
             s,
             worker_devices[p % NUM_WORKERS],
-            colloc_embeddings,
+            df,  # pass the dataframe with embeddings and all columns
             norm_freq_en,
             do_equal_frequency,
             M,
             embed_dim,
             forget_prob,
             minerva_k,
-            wandb_group_name=wandb_group_name
+            wandb_group_name=wandb_group_name,
         )
         for p, s in enumerate(participant_seeds)
     )
@@ -664,7 +694,6 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
     np.random.seed(0)
-
 
     args = parser.parse_args()
 
