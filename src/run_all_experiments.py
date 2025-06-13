@@ -50,12 +50,6 @@ if __name__ == "__main__":
         default=False,
     ),
     parser.add_argument(
-        "--minerva_k",
-        help="Minerva k (threshold) parameter",
-        default=0.95,
-        type=float,
-    )
-    parser.add_argument(
         "--minerva_max_iter",
         help="Minerva max_iter parameter",
         default=300,
@@ -117,8 +111,10 @@ if __name__ == "__main__":
         do_equal_frequency,
     ) in product(
         ["sbert", "fasttext"],
-        [0.0, 0.2, 0.4, 0.6, 0.8],
-        [0.95, 0.96, 0.97, 0.98, 0.99, 0.995],
+        # [0.0, 0.2, 0.4, 0.6, 0.8],
+        [0.6, 0.8],
+        # [0.95, 0.96, 0.97, 0.98, 0.99, 0.995],
+        [0.96, 0.98, 0.99],
         [False, True],
         [False, True],
     ):
