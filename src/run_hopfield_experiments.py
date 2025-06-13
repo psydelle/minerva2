@@ -144,11 +144,11 @@ def train_epoch(
         losses.append(loss.detach().item())
 
     # Report progress of training procedure.
-    return sum(losses) / len(losses), sum(failures) / len(failures)
+    return sum(losses) / len(losses), sum(failures)
 
 
 def eval_iter(
-    network: HfModel, eval_x: torch.Tensor, eval_y: torch.Tensor, threshold: float
+    network: HfModel, data_loader_eval: DataLoader, threshold: float
 ) -> Tuple[float, float, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Evaluate the current model.
@@ -160,30 +160,40 @@ def eval_iter(
     network.eval()
     device = next(network.parameters()).device
     with torch.no_grad():
-        losses, failures = [], []
+        losses, failures, item_failures, item_sim, item_predictions = [], [], [], [], []
 
-        # Move data to the correct device.
-        eval_x, eval_y = eval_x.to(device=device), eval_y.to(device=device)
+        for eval_x, eval_y in data_loader_eval:
+            # Move data to the correct device.
+            eval_x, eval_y = eval_x.to(device=device), eval_y.to(device=device)
 
-        # Process data by Hopfield-based network.
-        loss = network.calculate_objective(eval_x, eval_y)
+            # Process data by Hopfield-based network.
+            loss = network.calculate_objective(eval_x, eval_y)
 
-        # Compute performance measures of current model.
-        item_failures, item_sim, item_predictions = network.calculate_retrieval_failures(
-            eval_x, eval_y, threshold=threshold
-        )
-        failures.append(item_failures.detach().sum().item())
-        losses.append(loss.detach().item())
+            # Compute performance measures of current model.
+            _item_failures, _item_sim, _item_predictions = network.calculate_retrieval_failures(
+                eval_x, eval_y, threshold=threshold
+            )
+            failures.append(_item_failures.detach().sum().item())
+            losses.append(loss.detach().item())
+            item_failures.append(_item_failures.detach().cpu())
+            item_sim.append(_item_sim.detach().cpu())
+            item_predictions.append(_item_predictions.detach().cpu())
+
+    # Concatenate item failures, similarities, and predictions.
+    item_failures = torch.cat(item_failures, dim=0)
+    item_sim = torch.cat(item_sim, dim=0)
+    item_predictions = torch.cat(item_predictions, dim=0)
 
     # Report progress of validation procedure.
-    return sum(losses) / len(losses), sum(failures) / len(failures), item_failures, item_sim, item_predictions
+    return sum(losses) / len(losses), sum(failures), item_failures, item_sim, item_predictions
 
 
 def operate(
     network: HfModel,
     optimiser: AdamW,
     data_loader_train: DataLoader,
-    eval_data: Tuple[torch.Tensor, torch.Tensor, pd.DataFrame],
+    data_loader_eval: DataLoader,
+    eval_df: pd.DataFrame,
     num_epochs: int,
     threshold: float,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -193,7 +203,7 @@ def operate(
     :param network: network instance to train
     :param optimiser: optimiser instance responsible for updating network parameters
     :param data_loader_train: data loader instance providing training data
-    :param eval_dataset: dataset instance providing validation data
+    :param data_loader_eval: data loader instance providing validation data
     :param eval_df: dataframe containing evaluation metadata (e.g., item types)
     :param num_epochs: amount of epochs to train
     :return: data frame comprising training as well as evaluation performance
@@ -212,10 +222,11 @@ def operate(
             }
         )
         # Evaluate current model.
-        eval_x, eval_y, eval_df = eval_data
         eval_df = eval_df.copy()
-        e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(network, eval_x, eval_y, threshold=threshold)
-        # eval_df = eval_df.reset_index(drop=True)
+        e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(network, data_loader_eval, threshold=threshold)
+        assert item_failures.shape[0] == eval_df.shape[0], (
+            f"Expected {eval_df.shape[0]} item failures, got {item_failures.shape[0]}"
+        )
         eval_df["is_failure"] = item_failures.detach().cpu().numpy()
         eval_df["sim_to_correct"] = item_sim.detach().cpu().numpy()
         # eval_df["item_predictions"] = [p.tolist() for p in item_predictions.detach().cpu()]
@@ -234,7 +245,7 @@ def operate(
             }
         )
         print(
-            f"Epoch {epoch} | Train Loss: {t_loss:.4f} | Train Failures: {t_fails:.4f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.4f}"
+            f"Epoch {epoch} | Train Loss: {t_loss:.4f} #| Train Failures: {t_fails:.1f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.1f}"
         )
     network.wandb_run.finish()
 
@@ -296,9 +307,10 @@ def run_iteration_general(
     # stack the embeddings into a tensor
     colloc_bert_embeddings = torch.stack(df["vec"].tolist()).to("cpu")
     # normalize the embeddings to standard normal
-    colloc_bert_embeddings = (
-        colloc_bert_embeddings - colloc_bert_embeddings.mean()
-    ) / colloc_bert_embeddings.std()
+    # NEW: remove normalization
+    # colloc_bert_embeddings = (
+    #     colloc_bert_embeddings - colloc_bert_embeddings.mean()
+    # ) / colloc_bert_embeddings.std()
     # sample from the collocations to make a M x 768 matrix
     n_items = len(colloc_bert_embeddings)
     sample_k = M - n_items
@@ -375,9 +387,10 @@ def run_iteration_general(
 
     # create a data loader for the training data
     train_dataset = torch.utils.data.TensorDataset(train_x, train_y)
+    batch_size = 8
     train_loader = DataLoader(
         train_dataset,
-        batch_size=32,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=0,
         generator=torch_generator,
@@ -385,7 +398,17 @@ def run_iteration_general(
         # persistent_workers=True,
     )
     # create a data loader for the validation data
-    eval_data = (train_x, train_y, df.drop(columns=["vec"]))
+    eval_data = torch.utils.data.TensorDataset(train_x, train_y)
+    eval_loader = DataLoader(
+        eval_data,
+        batch_size=batch_size,
+        shuffle=False, # MUST BE FALSE for evaluation
+        num_workers=0,
+        generator=torch_generator,
+        # pin_memory=True,
+        # persistent_workers=True,
+    )
+    eval_df = df.drop(columns=["vec"])
 
     print(
         f"Participant {p+1} | Seed {s} | Running on {device} | Training with {len(train_x)} samples, {len(train_y)} eval samples"
@@ -395,7 +418,8 @@ def run_iteration_general(
         network=hopfield,
         optimiser=optimiser,
         data_loader_train=train_loader,
-        eval_data=eval_data,
+        data_loader_eval=eval_loader,
+        eval_df=eval_df,
         num_epochs=num_epochs,
         threshold=minerva_k,
     )
