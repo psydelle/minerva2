@@ -15,20 +15,16 @@ import json
 import csv as csv  # for reading in the dataset, etc.
 from joblib import Parallel, delayed  # for parallel processing
 import argparse
+import wandb
+import wandb.data_types  # Weights and Biases for experiment tracking
 
 from run_one_experiment import get_embeddings
 from hflayers import Hopfield, HopfieldLayer
 
-random.seed(0)
-torch.manual_seed(0)
-np.random.seed(0)
-
 class HfModel(torch.nn.Module):
-    def __init__(self, embed_dim: int, hidden_size: int, beta: float, stored_patterns: Optional[torch.Tensor] = None):
+    def __init__(self, embed_dim: int, hidden_size: int, beta: float, wandb_run, stored_patterns: Optional[torch.Tensor] = None):
         super(HfModel, self).__init__()
-        self.L = 500
-        self.D = 128
-        self.K = 1
+        self.wandb_run = wandb_run
 
         if stored_patterns is not None:
             self.hopfield = Hopfield(
@@ -187,15 +183,24 @@ def operate(network: HfModel,
         performance = train_epoch(network, optimiser, data_loader_train, threshold=threshold)
         losses[r'train'].append(performance[0])
         failures[r'train'].append(performance[1])
-
+        network.wandb_run.log({
+                'epoch': epoch,
+                'train/loss': performance[0],
+                'train/failures': performance[1],
+            })
         # Evaluate current model.
         performance = eval_iter(network, data_loader_eval, threshold=threshold)
         losses[r'eval'].append(performance[0])
         failures[r'eval'].append(performance[1])
+        network.wandb_run.log({
+                'epoch': epoch,
+                'eval/loss': performance[0],
+                'eval/failures': performance[1],
+            })
         print(
             f"Epoch {epoch} | Train Loss: {losses[r'train'][-1]:.4f} | Train Failures: {failures[r'train'][-1]:.4f} | Eval Loss: {losses[r'eval'][-1]:.4f} | Eval Failures: {failures[r'eval'][-1]:.4f}"
         )
-
+    network.wandb_run.finish()
 
     # Report progress of training and validation procedures.
     return pd.DataFrame(losses), pd.DataFrame(failures)
@@ -231,6 +236,8 @@ def run_iteration_general(
     embed_dim,
     forget_prob,
     minerva_k,
+    num_epochs=100,
+    wandb_group_name="hopfield-general-experiment",
 ):
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -288,12 +295,33 @@ def run_iteration_general(
     # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     noisy_mem = noisy_mem.to(device)
 
-    beta = None  # TODO
+    beta = 1.0  # Set a default float value for beta for wandb compatibility
     hidden_size = 100
+    # Pass a group name for wandb grouping (e.g., experiment label or run type)
+    wandb_run = wandb.init(
+        project="hopfield-experiments",
+        group=wandb_group_name,
+        config={
+            "embed_dim": embed_dim,
+            "hidden_size": hidden_size,
+            "beta": beta,
+            "participant": p + 1,
+            "seed": s,
+            "num_epochs": num_epochs,
+            "device": str(device),
+            "M": M,
+            "forget_prob": forget_prob,
+            "minerva_k": minerva_k,
+            "do_equal_frequency": do_equal_frequency,
+        },
+        reinit="create_new"
+    )
+
     hopfield = HfModel(
         embed_dim=embed_dim,
         hidden_size=hidden_size,
         beta=beta,
+        wandb_run=wandb_run,
         stored_patterns=noisy_mem,  # use the noisy memory matrix as the stored patterns
     ).to(device)
 
@@ -337,7 +365,7 @@ def run_iteration_general(
     )
 
     print(
-        f"Participant {p+1} | Seed {s} | Running on {device} | Training with {len(train_loader.dataset)} samples, {len(eval_loader.dataset)} eval samples"
+        f"Participant {p+1} | Seed {s} | Running on {device} | Training with {len(train_x)} samples, {len(train_y)} eval samples"
     )
     # train the model
     losses, failures = operate(
@@ -345,7 +373,7 @@ def run_iteration_general(
         optimiser=optimiser,
         data_loader_train=train_loader,
         data_loader_eval=eval_loader,
-        num_epochs=100,  # TODO
+        num_epochs=num_epochs,
         threshold=minerva_k
     )
     print(losses, failures)
@@ -490,6 +518,9 @@ def run_experiment(
     # if os.path.exists(out_file + ".lock"):
     #     os.remove(out_file + ".lock")
 
+    current_time = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+    wandb_group_name = f"hopfield-{current_time}"
+
     results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
         delayed(run_iteration_general)(
             p,
@@ -502,6 +533,7 @@ def run_experiment(
             embed_dim,
             forget_prob,
             minerva_k,
+            wandb_group_name=wandb_group_name
         )
         for p, s in enumerate(participant_seeds)
     )
@@ -628,6 +660,11 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
+
+    random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
+
 
     args = parser.parse_args()
 

@@ -61,11 +61,6 @@ from flair.embeddings import WordEmbeddings
 # from newest_regression import CollocNet
 # -----------------------------------------------------------------------------#
 
-# set the random seeds for reproducibility
-random.seed(0)
-torch.manual_seed(0)
-np.random.seed(0)
-
 # set current working directory to this folder
 
 # os.chdir(Path(__file__).parent.absolute())
@@ -687,6 +682,12 @@ if __name__ == "__main__":
         action="store_true",
         default=True,
     )
+
+    # set the random seeds for reproducibility
+    random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
+
     args = parser.parse_args()
 
     assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
