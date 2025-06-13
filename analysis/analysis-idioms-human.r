@@ -1,4 +1,6 @@
 # %%
+
+
 getwd()
 # load packages
 library(tidyverse) # data wrangling
@@ -294,7 +296,7 @@ sd(human$RT) # 387
 
 
 # write to csv
-write_csv(human, "human_clean_for_acl_withbreakdiffuse.csv")
+write_csv(human, "human_clean_for_acl.csv")
 
 # %%
 
@@ -403,20 +405,40 @@ human$Condition <- relevel(as.factor(human$Condition), ref = "Idiom")
 # summary(glmm_rt)
 
 
-glmm_rt_max <- glmer(RT ~ Condition + scale(Frequency) + (1 | ID) + (1 | Verb),
+glmm_rt_max <- lmer(RT ~ Condition + scale(Frequency) + (1 | ID) + (1 | Verb),
     data = human %>%
-        filter(Condition != "Baseline") %>%
-        filter(Accuracy == 1),
-    family = Gamma(link = "identity")
+        filter(Verb != "break") %>%
+        filter(Condition != "Collocation") %>%
+        filter(Accuracy == 1)
+    # family = Gamma(link = "identity")
 )
 
 summary(glmm_rt_max)
 anova(glmm_rt_null, glmm_rt, glmm_rt_max)
 
+# check collinearity without performance
+
+car::vif(glmm_rt_max)
+
+performance::check_collinearity(glmm_rt_max)
 # use stargazer to create a latex table
 
 stargazer::stargazer(glmm_rt_null, glmm_rt, glmm_rt_max, type = "latex", title = "RTs with low acc items", align = TRUE, label = "tab:rt", header = TRUE, digits = 3)
 
+performance::check_model(glmm_rt_max)
+
+# plot model
+sjPlot::plot_model(glmm_rt_max, type = "pred", terms = c("Condition", "Frequency"), show.values = TRUE, show.p = TRUE, title = "RTs with low acc items", axis.lim = c(500, 1100))
+
+# print frequency verb = break
+human %>%
+    filter(Verb == "break") %>%
+    select(Frequency) %>%
+    unique()
+
+# repca
+
+rePCA(glmm_rt_max)
 
 # %%
 # accuracy model

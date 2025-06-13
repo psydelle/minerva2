@@ -22,7 +22,7 @@ library(pander) # for publication-ready tables
 library(xtable) # for latex tables
 # library(patchwork) # for combining plots
 library(lme4) # for mixed effects models
-library(brms)
+# library(brms)
 
 
 # set theme for ggplot
@@ -119,8 +119,10 @@ minerva <- minerva %>% filter(Verb != "silence")
 minerva <- minerva %>% filter(Verb != "muzzle")
 minerva <- minerva %>% filter(Verb != "pad")
 minerva <- minerva %>% filter(Verb != "slap")
-minerva <- minerva %>% filter(Verb != "diffuse") # wrong spelling
-minerva <- minerva %>% filter(Verb != "break") # too high freq
+# minerva <- minerva %>% filter(Verb != "diffuse") # wrong spelling
+# minerva <- minerva %>% filter(Verb != "break") # too high freq
+
+# WE NEED TO RUN MODELS WITHOUT BREAK AND DIFFUSE
 
 # from here on , we only deal with contextual embeddings
 minerva <- minerva %>% filter(Model == "sbert")

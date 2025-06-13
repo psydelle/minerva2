@@ -1,5 +1,5 @@
 # %%
-
+getwd()
 library(tidyverse) # data wrangling
 library(skimr) # summary statistics
 library(pander) # for publication-ready tables
@@ -7,6 +7,7 @@ library(xtable) # for latex tables
 library(patchwork) # for combining plots
 library(lme4) # for mixed effects models
 library(performance)
+
 # set theme for ggplot
 theme_set(theme_bw())
 
@@ -36,10 +37,10 @@ options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#646262"))
 plot_theme <- theme(
     title = element_text(size = 26, face = "bold"),
     axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
-    axis.title = element_text(size = 18, face = "bold"),
+    axis.title = element_text(size = 24, face = "bold"),
     axis.title.x = element_blank(),
-    axis.title.y = element_text(size = 22, face = "bold"),
-    axis.text.y = element_text(size = 22, face = "bold"),
+    axis.title.y = element_text(size = 24, face = "bold"),
+    axis.text.y = element_text(size = 20, face = "bold"),
     axis.text.x = element_blank(),
     legend.title = element_blank(),
     legend.text = element_text(size = 20, face = "bold"),
@@ -50,7 +51,8 @@ plot_theme <- theme(
     panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
     panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
     panel.spacing = unit(0, "points"),
-    plot.background = element_rect(colour = "white", fill = "white")
+    plot.background = element_rect(colour = "white", fill = "white"),
+    label = element_text(size = 20, face = "bold")
 )
 
 
@@ -109,11 +111,13 @@ timeouts %>%
 # %%
 # set reference level for the condition to idiom
 k99f08$Condition <- relevel(k99f08$Condition, ref = "Idiom")
-fs_no_timeout_glmm_tau <- glm(Tau ~ Condition + scale(Frequency), data = k99f08 %>% filter(Tau < 300) %>% filter(Experiment == "Frequency & Semantics"), , family = Gamma(link = "identity"))
+
+fs_no_timeout_glmm_tau <- glm(Tau ~ Condition + scale(Frequency), data = k99f08 %>% filter(Tau < 300) %>% filter(Experiment == "Frequency & Semantics"), family = Gamma(link = "identity"))
 summary(fs_no_timeout_glmm_tau)
 
 fs_timeout_glmm_tau <- glm(Tau ~ Condition + scale(Frequency), data = k99f08 %>% filter(Experiment == "Frequency & Semantics"), , family = Gamma(link = "identity"))
 summary(fs_timeout_glmm_tau)
+
 
 # latex table
 stargazer::stargazer(fs_no_timeout_glmm_tau, fs_timeout_glmm_tau, type = "latex", title = "GLM results for Frequency & Semantics  with K = 0.99 and Forget = 0.8")
@@ -151,6 +155,10 @@ k99f08 %>%
 # reorder level for the condition to compositional, collocation, idiom
 k99f08$Condition <- factor(k99f08$Condition, levels = c("Compositional", "Collocation", "Idiom"))
 
+# check if verb == break exists
+k99f08 %>%
+    filter(Verb == "break") %>%
+    xtable()
 
 # plots for tau. I need mean taus for each experiment with and without timeouts. Each experiement should be saved as a separate plot
 plot_fs_notimeout <- k99f08 %>%
@@ -159,29 +167,44 @@ plot_fs_notimeout <- k99f08 %>%
     group_by(Condition) %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_text(stat = "summary", fun = "mean", aes(label = round(after_stat(y), 2), group = Condition), vjust = 2, size = 10, fontface = "bold", position = position_dodge(width = 0.2)) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(title = "Frequency & Semantics", y = "Tau", subtitle = "Successful Retrievals") +
+    labs(y = "Mean Tau", subtitle = "Successful Retrievals") +
     theme_bw() +
     plot_theme
 
 plot_fs_notimeout
 
-plot_fs_timeout <- k99f08 %>%
+plot_fs_percentage_timeouts <- k99f08 %>%
     filter(Experiment == "Frequency & Semantics") %>%
     group_by(Condition) %>%
-    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
-    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
-    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(y = "Tau", subtitle = "All Retrievals") +
+    summarise(percentage = (sum(Tau >= 300) / n()) * 100) %>%
+    ggplot(aes(x = Condition, y = percentage, fill = Condition)) +
+    geom_bar(stat = "identity", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_text(aes(label = paste0(round(percentage, 1), "%")), vjust = 2, size = 10, fontface = "bold", position = position_dodge(width = 0.9)) +
+    labs(y = "Percentage of Failed Retrievals (Timeouts)", subtitle = "Failed Retrievals (Timeouts)") +
     theme_bw() +
-    plot_theme
+    plot_theme + # add % sign to y axis labels
+    scale_y_continuous(labels = scales::percent_format(scale = 1))
 
-plot_fs_timeout
+plot_fs_percentage_timeouts
+
+# plot_fs_timeout <- k99f08 %>%
+#     filter(Experiment == "Frequency & Semantics") %>%
+#     group_by(Condition) %>%
+#     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+#     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+#     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+#     labs(y = "Tau", subtitle = "All Retrievals") +
+#     theme_bw() +
+#     plot_theme
+
+# plot_fs_timeout
 
 # share y axis
-plot_fs_notimeout + plot_fs_timeout + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom")
+plot_fs_notimeout + plot_fs_percentage_timeouts + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom")
 
-ggsave("barplot-fs-contextual.png", width = 30, height = 20, units = "cm")
+ggsave("analysis\\conll\\barplot-fs-success-failure-contextual.png",  width = 15, height = 10, units = "in", dpi = 300)
 
 # %%
 # plot for semantics only
@@ -193,28 +216,45 @@ plot_s_notimeout <- k99f08 %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(title = "Semantics Only", y = "Tau", subtitle = "Successful Retrievals") +
+    geom_text(stat = "summary", fun = "mean", aes(label = round(after_stat(y), 2), group = Condition), vjust = 2,size = 10, fontface = "bold", position = position_dodge(width = 0.2)) +
+    labs( y = "Mean Tau", subtitle = "Successful Retrievals") +
     theme_bw() +
     plot_theme
 
 plot_s_notimeout
 
-plot_s_timeout <- k99f08 %>%
+plot_s_percentage_timeouts <- k99f08 %>%
     filter(Experiment == "Semantics-only") %>%
     group_by(Condition) %>%
-    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
-    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
-    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(y = "Tau", subtitle = "All Retrievals") +
+    summarise(percentage = (sum(Tau >= 300) / n()) * 100) %>%
+    ggplot(aes(x = Condition, y = percentage, fill = Condition)) +
+    geom_bar(stat = "identity", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_text(aes(label = paste0(round(percentage, 1), "%")), vjust = 2,size = 10, fontface = "bold", position = position_dodge(width = 0.9)) +
+    labs(y = "Percentage of Failed Retrievals (Timeouts)", subtitle = "Failed Retrievals (Timeouts)") +
     theme_bw() +
-    plot_theme
+    plot_theme + # add % sign to y axis labels
+    scale_y_continuous(labels = scales::percent_format(scale = 1))
 
-plot_s_timeout
+plot_s_percentage_timeouts
+
+           
+
+# plot_s_timeout <- k99f08 %>%
+#     filter(Experiment == "Semantics-only") %>%
+#     group_by(Condition) %>%
+#     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+#     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+#     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+#     labs(y = "Tau", subtitle = "All Retrievals") +
+#     theme_bw() +
+#     plot_theme
+
+# plot_s_timeout
 
 # share y axis
-plot_s_notimeout + plot_s_timeout + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom")
+plot_s_notimeout + plot_s_percentage_timeouts + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom")
 
-ggsave("barplot-sonly-contextual.png", width = 30, height = 20, units = "cm")
+ggsave("analysis\\conll\\barplot-sonly-success-failure-contextual.png", width = 30, height = 40, units = "cm")
 
 
 # %%
@@ -228,38 +268,46 @@ plot_f_notimeout <- k99f08 %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(title = "Frequency Only", y = "Tau", subtitle = "Successful Retrievals") +
+ geom_text(stat = "summary", fun = "mean", aes(label = round(after_stat(y), 2), group = Condition), vjust = 2, size = 10, fontface = "bold", position = position_dodge(width = 0.2)) +
+    labs(y = "Mean Tau", subtitle = "Successful Retrievals") +
     theme_bw() +
     plot_theme
 
 plot_f_notimeout
 
-plot_f_timeout <- k99f08 %>%
+plot_f_percentage_timeouts <- k99f08 %>%
     filter(Experiment == "Frequency-only") %>%
     group_by(Condition) %>%
-    ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
-    geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
-    geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    labs(y = "Tau", subtitle = "All Retrievals") +
+    summarise(percentage = (sum(Tau >= 300) / n()) * 100) %>%
+    ggplot(aes(x = Condition, y = percentage, fill = Condition)) +
+    geom_bar(stat = "identity", position = "dodge", color = "black", linewidth = 0.8) +
+    geom_text(aes(label = paste0(round(percentage, 1), "%")), vjust = 2,size = 10, fontface = "bold", position = position_dodge(width = 0.9)) +
+    labs(y = "Percentage of Failed Retrievals (Timeouts)", subtitle = "Failed Retrievals (Timeouts)") +
     theme_bw() +
-    plot_theme
+    plot_theme + # add % sign to y axis labels
+    scale_y_continuous(labels = scales::percent_format(scale = 1))
 
-plot_f_timeout
+plot_f_percentage_timeouts
+
+
+
+# plot_f_timeout <- k99f08 %>%
+#     filter(Experiment == "Frequency-only") %>%
+#     group_by(Condition) %>%
+#     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+#     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+#     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
+#     labs(y = "Tau", subtitle = "All Retrievals") +
+#     theme_bw() +
+#     plot_theme
+
+# plot_f_timeout
 
 # share y axis
-plot_f_notimeout + plot_f_timeout + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom")
+plot_f_notimeout + plot_f_percentage_timeouts + plot_layout(guides = "collect", axis_titles = "collect", axes = "collect_y") & theme(legend.position = "bottom") 
 
-ggsave("barplot-fonly-contextual.png", width = 30, height = 20, units = "cm")
+ggsave("analysis\\conll\\barplot-fonly-success-failure-contextual.png", width = 30, height = 40, units = "cm")
 
-# %%
-
-# percentage timeouts per condition and experiment
-k99f08 %>%
-    group_by(Condition, Experiment) %>%
-    summarise(percentage = sum(Tau >= 300) / n()) %>%
-    xtable()
-
-# plot percentage timeouts
 
 # plot for semantics only
 
@@ -270,7 +318,7 @@ plot_s_notimeout <- k99f08 %>%
     ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
     geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
     geom_errorbar(stat = "summary", fun.data = "mean_cl_boot", position = position_dodge(width = 0.90), width = 0.25, linewidth = 0.8) +
-    #    geom_text(stat = "summary", aes(label = round(after_stat(y),2), group = Condition), vjust = -1, size = 8, position = position_dodge(width = 0.2)) +
+    #    geom_text(stat = "summary", aes(label = round(after_stat(y),2), group = Condition), vjust = 2, size = 8, position = position_dodge(width = 0.2)) +
     labs(title = "Semantics Only", y = "Tau", subtitle = "Successful Retrievals") +
     theme_bw() +
     plot_theme
@@ -324,20 +372,39 @@ k99f08 %>%
 plot <- k99f08 %>%
     filter(Experiment == "Frequency & Semantics") %>%
     group_by(Condition, Item) %>%
-    summarise(Frequency = mean(Frequency), Timeouts = sum(Tau == 300)) %>%
-    ggplot(aes(x = log(Frequency), y = Timeouts, color = Condition)) +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE) +
-    labs(title = "Frequency & Semantics", x = "Frequency", y = "Timeouts") +
+    summarise(Frequency = mean(Frequency), Timeouts = (sum(Tau == 300) / n()) * 100) %>%
+    ggplot(aes(x = log10(Frequency), y = Timeouts, color = Condition)) +
+    geom_point(shape = 21, size = 4, alpha = 0.9, color = "black", aes(fill = Condition)) +
+    labs(x = "log10(Frequency)", y = "Percentage of Failed Retrievals (Timeouts)") +
     theme_bw() +
+    scale_color_manual(values = c("#387ADF", "#FF4500", "#50C4ED")) +
     plot_theme +
-    theme(axis.text.x = element_text(size = 20, face = "bold"), axis.text.y = element_text(size = 20, face = "bold"))
+    theme(axis.title.x = element_text(size = 22, face = "bold"),
+        axis.text.x = element_text(size = 20, face = "bold"), 
+    axis.text.y = element_text(size = 20, face = "bold"),
+    axis.title = element_text(size = 22, face = "bold"), legend.text = element_text(size = 20, face = "bold"), 
+    legend.position = c(0.8, 0.9), # Position legend inside the plot area (you can adjust this)
+        legend.background = element_rect(fill = "transparent", color = NA) # Optional: make legend background transparent
+  )
 
-
-# plot vertical line at 27123
-plot + geom_vline(xintercept = log(27123), linetype = "dashed", color = "red")
+# plot vertical line at 27123 -- this is the minerva cutoff for no timeouts
+plot <- plot + geom_vline(xintercept = log10(27123), linetype = "dashed", color = "black", linewidth = 1.2)
+# plot vertical line at 28000 -- this is the human cutoff for no differences by condition
+plot <- plot + geom_vline(xintercept = log10(28000), linetype = "dashed", color = "#00b900", linewidth = 1.2)
 
 plot
+
+ggsave("analysis\\conll\\scatterplot-fs-freq-timeoutscontextual.png", plot, width = 25, height = 20, units = "cm")
+
+# # list items with frequency between 27123 and 28000
+# k99f08 %>%
+#     filter(Experiment == "Frequency & Semantics") %>%
+#     filter(Frequency >= 27123, Frequency <= 28000) %>%
+#     group_by(Item, Frequency) %>%
+#     summarise(Timeouts = sum(Tau == 300)) %>%
+#     arrange(desc(Frequency)) %>%
+#     view()
+
 
 # find most frequent items with timeouts
 

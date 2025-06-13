@@ -1,0 +1,231 @@
+---
+title: "Minerva Analysis"
+description: | 
+  Statistical analysis of bahavioural data from the Minerva project.
+date: "`r Sys.Date()`"
+author:
+  - first_name: "Sydelle"
+    last_name: "de Souza"
+    url: https://psydelle.github.io
+    affiliation: University of Edinburgh
+    affiliation_url: https://www.ed.ac.uk
+    orcid_id: 0000-0003-0645-5666
+
+# bibliography: references.bib
+output: 
+  distill::distill_article:
+    code_folding: true
+    toc: true
+    number_sections: true
+
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  comment = "##",
+  R.options = list(width = 60))
+
+# Load tidyverse packages
+library(tidyverse)
+options(digits = 3)
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED"))
+palette <- c("#387ADF", "#FF4500", "#50C4ED")
+plot_theme <- theme(
+            title = element_text(face = "bold"),
+            axis.line = element_line(colour = "black", lineend = "round"),
+            axis.title = element_text(face = "bold"),
+            axis.title.x = element_blank(),
+            axis.title.y = element_text(face = "bold"),
+            axis.text.y = element_text(face = "bold"),
+            axis.text.x = element_text(face = "bold"),
+            legend.title = element_blank(),
+            legend.text = element_text(face = "bold"),
+            legend.position = "bottom",
+            strip.text.x = element_text(face = "bold"),
+            strip.text.y = element_text(face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"))
+
+library(distill)
+library(lme4)
+library(xtable)
+library(knitr)
+library(gtsummary)
+library(psych)
+library(kableExtra)
+```
+
+```{r load-data-human, include=FALSE}
+# Load the data from csv
+human <- read_csv("human_clean_for_acl.csv", show_col_types = FALSE)
+
+# set levels for condition 
+human$Condition <- factor(human$Condition, levels = c("Compositional", "Collocation", "Idiom"))
+
+```
+
+
+
+## Preface
+The data that we'll be using for the analysis is the cleaned version of the data. It does not include baselines, the verbs with low accuracy and outliers. Those can be found in the main repo. I'm doing this too keep the size of the data manageable as the minerva simulation data is too large and will take too long to run.
+
+## Behavioral Data
+This data has been collected by means of an acceptability judgment task. Participants were asked to judge the acceptability of a verb-noun combination by pressing the y or n key. We are interested in the reaction times (RT) and the accuracy of the responses.
+
+The experiment had three conditions: `r levels(human$Condition)`. We expect RTs to be different across conditions.
+
+<p style="text-align: center;"> **Idioms are fastest, compositional in the middle, collocations are slowest** </p>
+
+ We do no expect accuracy to be different across conditions as these are adult L1 speakers of English and the items are somewhat frequency matched.
+
+### Reaction Times
+
+```{r descriptive-stats-human-rt}
+
+# Group by condition and calculate the mean and standard deviation
+correct <- human %>% filter(Accuracy == 1)
+RT <- describeBy(correct$RT, group = correct$Condition, mat = TRUE) %>% 
+  as.data.frame() %>% 
+  rename(Condition = group1, 
+         Mean = mean, 
+         SD = sd, 
+         Median = median, 
+         Min = min, 
+         Max = max, 
+         Skewness = skew, 
+         Kurtosis = kurtosis) %>% 
+  select(Condition, Mean, SD, Median, Min, Max, Skewness, Kurtosis) 
+  rownames(RT) <- NULL
+
+kable(RT, caption = "Descriptive Statistics for Reaction Times by Condition")
+
+```
+
+```{r fig-human-rt-density, layout="l-body-outset"}
+
+human %>% 
+  ggplot(aes(x = RT, fill = Condition)) +
+  geom_density(alpha = 0.5, linewidth = 0.8) +
+  plot_theme + labs(title = "Density Plot of RTs by Condition", x = "Reaction Time (ms)", y = "Density")
+```
+
+```{r fig-human-rt, layout="l-body-outset", fig.cap="Boxplot of RTs by Condition"}
+# boxplot of RTs by condition
+human %>%
+  ggplot(aes(x = Condition, y = RT, fill = Condition)) +
+  geom_boxplot(alpha = 0.9, linewidth = 0.8) + 
+  geom_jitter(width = 0.2, height = 0, alpha = 0.2) + 
+    stat_summary(fun.y=mean, geom="point", shape=2, size=2, color="black") +
+  plot_theme +
+  labs(x = "Condition", y = "Reaction Time (ms)") + 
+  theme(legend.position = "none")
+```
+
+
+### Accuracy
+
+```{r descriptive-stats-human-accuracy}
+# Group by condition and calculate the mean and standard deviation
+
+Accuracy <- describeBy(human$Accuracy, group = human$Condition, mat = TRUE) %>% 
+  as.data.frame() %>% 
+  rename(Condition = group1, 
+         Mean = mean, 
+         SD = sd, 
+         Median = median, 
+         Min = min, 
+         Max = max, 
+         Skewness = skew, 
+         Kurtosis = kurtosis) %>% 
+  select(Condition, Mean, SD, Median, Min, Max, Skewness, Kurtosis) 
+  rownames(Accuracy) <- NULL
+kable(Accuracy, caption = "Descriptive Statistics for Accuracy by Condition")
+```
+
+```{r fig-human-accuracy, layout="l-body-outset"}
+# barplot of mean accuracy by condition
+human %>% ggplot(aes(x = Condition, y = Accuracy, fill = Condition)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", linewidth = 0.8) +
+  geom_errorbar(stat = "summary", fun.data = "mean_cl_normal", position = position_dodge(width = 0.9), width = 0.25) +
+  plot_theme +
+  labs(title = "Accuracy by Condition", x = "Condition", y = "Accuracy") + theme(legend.position = "none")
+```
+
+### Frequency
+
+#### Condition-wise Descriptive Statistics for Frequency
+
+```{r descriptive-stats-human-frequency}
+
+# Group by condition and calculate the mean and standard deviation
+
+Frequency <- describeBy(human$Frequency, group = human$Condition, mat = TRUE) %>% 
+  as.data.frame() %>% 
+  rename(Condition = group1, 
+         Mean = mean, 
+         SD = sd, 
+         Median = median, 
+         Min = min, 
+         Max = max, 
+         Skewness = skew, 
+         Kurtosis = kurtosis) %>% 
+  select(Condition, Mean, SD, Median, Min, Max, Skewness, Kurtosis) 
+  rownames(Frequency) <- NULL
+kable(Frequency, caption = "Descriptive Statistics for Frequency by Condition")
+```
+
+```{r fig-human-frequency, layout="l-body-outset"}
+
+# density plot of frequency by condition
+human %>% ggplot(aes(x = Frequency, fill = Condition)) +
+  geom_density(alpha = 0.5, linewidth = 0.8) +
+  plot_theme + labs(title = "Density Plot of Frequency by Condition", x = "Frequency", y = "Density") + facet_wrap(~Condition, scales = "free") + theme(legend.position = "none")
+```
+
+#### Correlation between RT and Frequency
+
+```{r frequency, layout="l-body-outset"}
+
+# Scatterplot of RT and Frequency
+human %>% ggplot(aes(x = log(Frequency), y = RT, color = Condition)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black",linewidth = 1) +
+   plot_theme + theme(legend.position = "none") + theme(axis.text.x = element_text()) +
+  labs(title = "Scatterplot of RT and Frequency", x = "log(Frequency)", y = "Reaction Time (ms)") + facet_wrap(~Condition, scales = "free") +
+  scale_color_manual(values = palette)
+
+```
+
+## Statistical Analysis
+
+We will fit a linear mixed effects model to the data to account for the repeated measures design. We will include random intercepts for participants and verbs. Predictors will be condition and scale(frequency). Only correct responses will be included in the model. Family will be gamma with identity link.
+
+```{r lmer-human, layout="l-body-outset", echo=TRUE}
+# Fit the model
+
+# human_model <- glmer(RT ~ Condition + scale(Frequency) + (1|ID) + (1|Verb), data = human %>% filter(Accuracy == 1), family = Gamma(link = "identity"))
+
+```
+
+### anova
+
+```{r anova-human-high-freq, layout="l-body-outset", echo=TRUE}
+
+hfreq <- human %>% filter(Frequency > 28000)
+
+hfreq %>% group_by(Condition) %>% summarise(Mean = mean(RT), SD = sd(RT), Median = median(RT), Min = min(RT), Max = max(RT)) %>% 
+  kable(caption = "Descriptive Statistics for High Frequency Items by Condition")
+
+# anova for high frequency
+
+aov(RT ~ Condition + log(Frequency) + Error(ID/Verb), data = hfreq %>% filter(Accuracy == 1)) %>% 
+summary()
+  
+
+```

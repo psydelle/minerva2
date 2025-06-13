@@ -1,0 +1,191 @@
+```{r reprex-options, include = FALSE}
+options(
+  keep.source = TRUE,
+  crayon.enabled = FALSE,
+  reprex.current_venue = "gh"
+)
+```
+
+```{r, results = 'asis', echo = FALSE, include = file.exists('.Rprofile'), eval = file.exists('.Rprofile')}
+cat(sprintf("*Local `.Rprofile` detected at `%s`*", normalizePath(".Rprofile")))
+```
+
+---
+title: "Minerva2 Analysis for CONLL 2025"
+output:
+html_document:
+    toc: TRUE
+    toc_collapsed: TRUE
+    number_sections: TRUE
+    code_folding: hide
+    fig_width: 6
+    fig_height: 4
+    fig_caption: TRUE
+    df_print: paged
+    highlight: tango
+    theme: cosmo
+    css: styles.css
+    self_contained: FALSE
+    keep_md: TRUE
+    keep_html: TRUE
+knit: html_document
+---
+
+```{r setup, include = FALSE, eval = requireNamespace("tidyverse", quietly = TRUE)}
+
+# load libraries
+library(tidyverse)
+library(xtable)
+library(ggplot2)
+library(lme4)
+
+
+# set options
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "figures/",
+  out.width = "100%",
+  fig.align = "center",
+  fig.asp = 0.75,
+  fig.show = "hold",
+  dev = "png",
+  warning = FALSE,
+  message = FALSE
+)
+
+# set theme
+
+options(ggplot2.discrete.fill = c("#387ADF", "#FF4500", "#50C4ED", "#646262"))
+plot_theme <- theme(
+            title = element_text(size = 26, face = "bold"),
+            axis.line = element_line(colour = "black", linewidth = 0.8, lineend = "round"),
+            axis.title = element_text(size = 18, face = "bold"),
+            axis.title.x = element_blank(),
+            axis.title.y = element_text(size = 22, face = "bold"),
+            axis.text.y = element_text(size = 22, face = "bold"),
+            axis.text.x = element_blank(),
+            legend.title = element_blank(),
+            legend.text = element_text(size = 20, face = "bold"),
+            legend.position = "bottom",
+            strip.text.x = element_text(size = 18, face = "bold"),
+            strip.text.y = element_text(size = 18, face = "bold"),
+            strip.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.background = element_rect(colour = "black", fill = "white", linewidth = 0.8),
+            panel.grid.major = element_line(colour = "grey", linewidth = 0.5),
+            panel.spacing = unit(0, "points"),
+            plot.background = element_rect(colour = "white", fill = "white"))
+
+
+```
+
+## Data Analysis
+
+### Behavioral Data
+
+This is the cleaned version of the data that we will use for the behavioral analysis. It does not include baselines, the verbs that we eliminated and outliers. Those can be found 
+
+```{r}
+# Load data
+human <- read_csv("human_clean_for_acl.csv")
+
+```
+
+### Minerva Simulations
+
+The tidyverse meta-package is quite chatty at startup, which can be very useful in exploratory, interactive work. It is often less useful in a reprex, so by default, we suppress this.
+
+However, when `tidyverse_quiet` is `FALSE`, the rendered result will include a tidyverse startup message about package versions and function masking.
+
+```{r, plot}
+
+# Plot
+ggplot(human, aes(x = Condition, y = Accuracy, fill = Condition)) +
+  geom_boxplot() +
+  plot_theme
+
+```
+
+
+## Computational Model
+
+This section analyses the MINERVA2 model output. The model was trained on the same data as the human participants. The model output is the RTs and accuracy of the model's responses.
+
+```{r load-data-minerva, include=FALSE}
+
+# Load the data from csv
+minerva <- read_csv("minerva_contextual_clean.csv")
+
+# filter out the Null Model
+minerva <- minerva %>% filter(Experiment != "Null Model")
+
+# set levels for condition
+minerva$Condition <- factor(minerva$Condition, levels = c("Compositional", "Collocation", "Idiom"))
+
+# set levels for experiment
+minerva$Experiment <- factor(minerva$Experiment, levels = c("Frequency & Semantics", "Semantics-only", "Frequency-only"))
+
+```
+
+```{r descriptive-stats-minerva-tau, layout="l-body-outset"}
+
+# Group by condition and experiment and calculate the mean and standard deviation
+
+fs <- minerva %>% 
+ filter(Experiment == "Frequency & Semantics")
+
+Tau_fs <- describeBy(Tau, group = Condition, mat = TRUE, data = fs) %>% 
+  as.data.frame() %>% 
+  rename(Condition = group1, 
+         Mean = mean, 
+         SD = sd, 
+         Median = median, 
+         Min = min, 
+         Max = max, 
+         Skewness = skew, 
+         Kurtosis = kurtosis) %>% 
+  select(Condition, Mean, SD, Median, Min, Max, Skewness, Kurtosis) 
+  rownames(Tau) <- NULL
+
+kable(Tau, caption = "Descriptive Statistics for Tau by Condition and Experiment")
+```
+
+```{r fig-minerva-tau, layout="l-body-outset", fig.cap="Boxplot of Tau by Condition for each Simulation"}
+
+# boxplot of Tau by condition and experiment
+
+minerva %>% 
+ filter(Tau < 300) %>%
+ggplot(aes(x = Condition, y = Tau, fill = Condition)) +
+  geom_boxplot() +
+  plot_theme + labs(title = "Boxplot of Tau by Condition and Experiment", x = "Condition", y = "Tau") + facet_wrap(~Experiment, scales = "free", ncol = 4)  
+
+
+```
+
+
+## Standard output and error
+
+Some output that you see in an interactive session is not actually captured by rmarkdown, when that same code is executed in the context of an `.Rmd` document. When `std_out_err` is `TRUE`, `reprex::reprex_render()` uses a feature of `callr:r()` to capture such output and then injects it into the rendered result.
+
+Look for this output in a special section of the rendered document (and notice that it does not appear right here).
+
+```{r}
+system2("echo", args = "Output that would normally be lost")
+```
+
+## Session info
+
+Because `session_info` is `TRUE`, the rendered result includes session info, even though no such code is included here in the source document. 
+
+<details style="margin-bottom:10px;">
+<summary>Standard output and standard error</summary>
+`C:/Users/psyde/OneDrive/Documents/GitHub/minerva2/analysis/conll_analysis_std_out_err.txt`
+</details>
+
+<details style="margin-bottom:10px;">
+<summary>Session info</summary>
+```{r }
+sessionInfo()
+```
+</details>
