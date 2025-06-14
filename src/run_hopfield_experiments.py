@@ -418,12 +418,15 @@ def run_iteration_general(
     else:
         frequencies = torch.tensor(norm_freq_en).float()
 
-    sampled_item_indices = torch.cat(
-        (
-            torch.arange(n_items),
-            torch.multinomial(frequencies, sample_k, replacement=True, generator=torch_generator),
-        )
-    ).long()
+    if sample_k > 0:
+        sampled_item_indices = torch.cat(
+            (
+                torch.arange(n_items),
+                torch.multinomial(frequencies, sample_k, replacement=True, generator=torch_generator),
+            )
+        ).long()
+    else:
+        sampled_item_indices = torch.arange(n_items).long()
     matrix = colloc_bert_embeddings[sampled_item_indices]
 
     assert matrix.size() == (M, embed_dim), "Huh?"
