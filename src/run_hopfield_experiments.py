@@ -381,7 +381,7 @@ def run_iteration_general(
     memory_size=1000,  # number of memory slots. Learned if learn_lookup is True, otherwise used to make noisy memories
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples=10000,  # number of training samples to use for the lookup table
-    no_wandb=False,  # if True, do not log to wandb
+    wandb_run = None,  # wandb run object, if None, a new run is created
 ):
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -445,9 +445,8 @@ def run_iteration_general(
     # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
 
     # Pass a group name for wandb grouping (e.g., experiment label or run type)
-    if no_wandb:
-        wandb_run = DummyWandbRun()
-    else:
+    if wandb_run is None:
+        # wandb_run = DummyWandbRun()
         wandb_run = wandb.init(
             project="hopfield-experiments",
             group=wandb_group_name,
@@ -615,31 +614,7 @@ def run_iteration_general(
     return log_dict
 
 
-def run_experiment(
-    *,
-    dataset_to_use: str,
-    kwics_file_to_use: str,
-    num_participants: int,
-    embedding_model="sbert",
-    forget_prob=0.6,
-    do_noise_embeddings=False,
-    do_equal_frequency=False,
-    do_log_freq=False,
-    minerva_k=0.955,
-    num_workers=1,
-    do_concat_tokens=False,
-    avg_last_n_layers=1,
-    num_epochs=100,
-    hidden_size=100,
-    batch_size=8,
-    label=None,
-    beta=None,
-    memory_size=1000,
-    learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
-    lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
-    wandb_group_name: Optional[str] = None,  # group name for wandb runs, will be generated if None
-    no_individual_wandb_runs=False
-):
+def make_data(*, dataset_to_use, kwics_file_to_use, embedding_model: str, do_log_freq: bool, do_concat_tokens: bool, avg_last_n_layers: int, do_noise_embeddings: bool, label: Optional[str] = None):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
     dataset = df[["item"]]
@@ -696,7 +671,51 @@ def run_experiment(
         on="item",
         how="left",
     )
+    return df, norm_freq_en, embed_dim
 
+
+def run_experiment_sweep_wrapper():
+    wandb_run = wandb.init(
+        project="hopfield-experiments",
+    )
+    return run_experiment(**wandb_run.config, only_one_run=True, wandb_run=wandb_run)
+
+
+def run_experiment(
+    *,
+    dataset_to_use: str,
+    kwics_file_to_use: str,
+    num_participants: int,
+    embedding_model="sbert",
+    forget_prob=0.6,
+    do_noise_embeddings=False,
+    do_equal_frequency=False,
+    do_log_freq=False,
+    minerva_k=0.955,
+    num_workers=1,
+    do_concat_tokens=False,
+    avg_last_n_layers=1,
+    num_epochs=100,
+    hidden_size=100,
+    batch_size=8,
+    label=None,
+    beta=None,
+    memory_size=1000,
+    learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
+    lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
+    only_one_run=False,  # if True, only one run is executed (for sweeps)
+    wandb_run=None
+):
+    df, norm_freq_en, embed_dim = make_data(
+        dataset_to_use=dataset_to_use,
+        kwics_file_to_use=kwics_file_to_use,
+        embedding_model=embedding_model,
+        do_log_freq=do_log_freq,
+        do_concat_tokens=do_concat_tokens,
+        avg_last_n_layers=avg_last_n_layers,
+        do_noise_embeddings=do_noise_embeddings,
+        label=label
+    )
     participant_seeds = []
     for _ in range(num_participants):
         participant_seeds.append(random.randint(0, 9999999))
@@ -721,56 +740,81 @@ def run_experiment(
     # if os.path.exists(out_file + ".lock"):
     #     os.remove(out_file + ".lock")
 
-    current_time = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
-    if wandb_group_name is None:
-        # Generate a group name based on the current time if not provided
-        wandb_group_name = f"hopfield-{current_time}"
+    if only_one_run:
+        # we're in a sweep, so we need to get the config from wandb
+        # also, only one participant per run
+        # wandb_run
+        results = run_iteration_general(
+                0,
+                participant_seeds[0],
+                worker_devices[0],
+                df,  # pass the dataframe with embeddings and all columns
+                norm_freq_en,
+                do_equal_frequency,
+                embed_dim,
+                forget_prob,
+                minerva_k,
+                num_epochs=num_epochs,
+                batch_size=batch_size,
+                hidden_size=hidden_size,
+                beta=beta,
+                memory_size=memory_size,
+                learn_lookup=learn_lookup,
+                lookup_n_train_samples=lookup_n_train_samples,
+                wandb_run=wandb_run
+            )
+        results = [results]
 
-    results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
-        delayed(run_iteration_general)(
-            p,
-            s,
-            worker_devices[p % NUM_WORKERS],
-            df,  # pass the dataframe with embeddings and all columns
-            norm_freq_en,
-            do_equal_frequency,
-            embed_dim,
-            forget_prob,
-            minerva_k,
-            num_epochs=num_epochs,
-            batch_size=batch_size,
-            hidden_size=hidden_size,
-            wandb_group_name=wandb_group_name,
-            beta=beta,
-            memory_size=memory_size,
-            learn_lookup=learn_lookup,
-            lookup_n_train_samples=lookup_n_train_samples,
-            no_wandb=no_individual_wandb_runs
+    else:
+        current_time = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
+        if wandb_group_name is None:
+            # Generate a group name based on the current time if not provided
+            wandb_group_name = f"hopfield-{current_time}"
+
+        results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
+            delayed(run_iteration_general)(
+                p,
+                s,
+                worker_devices[p % NUM_WORKERS],
+                df,  # pass the dataframe with embeddings and all columns
+                norm_freq_en,
+                do_equal_frequency,
+                embed_dim,
+                forget_prob,
+                minerva_k,
+                num_epochs=num_epochs,
+                batch_size=batch_size,
+                hidden_size=hidden_size,
+                wandb_group_name=wandb_group_name,
+                beta=beta,
+                memory_size=memory_size,
+                learn_lookup=learn_lookup,
+                lookup_n_train_samples=lookup_n_train_samples,
+            )
+            for p, s in enumerate(participant_seeds)
         )
-        for p, s in enumerate(participant_seeds)
-    )
 
     results_df: pd.DataFrame = pd.DataFrame(results)
 
-    # # # average the activations over all participants
-    # # activations_0 = results_df.groupby("item")["activations_0"].apply(
-    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-    # # )
-    # # activations_tau = results_df.groupby("item")["activations_tau"].apply(
-    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-    # # )
+        # # # average the activations over all participants
+        # # activations_0 = results_df.groupby("item")["activations_0"].apply(
+        # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+        # # )
+        # # activations_tau = results_df.groupby("item")["activations_tau"].apply(
+        # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+        # # )
 
-    # results_df["embedding_model"] = embedding_model
-    # results_df["is_noise_embeddings"] = do_noise_embeddings
-    # results_df["is_equal_frequency"] = do_equal_frequency
-    # results_df["minerva_k"] = minerva_k
-    # results_df["avg_last_n_layers"] = avg_last_n_layers
-    # results_df["forget_prob"] = forget_prob
+        # results_df["embedding_model"] = embedding_model
+        # results_df["is_noise_embeddings"] = do_noise_embeddings
+        # results_df["is_equal_frequency"] = do_equal_frequency
+        # results_df["minerva_k"] = minerva_k
+        # results_df["avg_last_n_layers"] = avg_last_n_layers
+        # results_df["forget_prob"] = forget_prob
 
-    # return results_df
+        # return results_df
 
-    # # if os.path.exists(out_file + ".lock"):
-    # #     os.remove(out_file + ".lock")
+        # # if os.path.exists(out_file + ".lock"):
+        # #     os.remove(out_file + ".lock")
 
     print("****************************\n\nAll done!\n\n****************************")
     return results_df
