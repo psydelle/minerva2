@@ -6,7 +6,7 @@
     "configurations": [
 
         {
-            "name": "Run Hopfield General",
+            "name": "Run Hopfield Lookup",
             "type": "python",
             "request": "launch",
             "program": "src/run_hopfield_experiments.py",
@@ -38,11 +38,55 @@
                 "--num_epochs",
                 "10",
                 "--hidden_size",
-                "768",
+                "100",
                 "--beta",
                 "1",
-                "--learn_lookup"
+                "--memory_size",
+                "1000",
+                "--learn_lookup",
+                "--lookup_n_train_samples",
+                "10000",
                 // "--dry_run_dump"
+            ]
+        },
+        {
+            "name": "Run Hopfield General",
+            "type": "python",
+            "request": "launch",
+            "program": "src/run_hopfield_experiments.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "MINERVA_DEBUG": "1",
+                "PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"
+            },
+            "args": [
+                "-d",
+                "data/stimuli_idioms_clean.csv",
+                "-k",
+                "data/stimuli_idioms_kwics.json",
+                // "none",
+                "-m",
+                // "fasttext",
+                "sbert",
+                "--num_workers",
+                "1",
+                "-n",
+                "1",
+                "--minerva_k",
+                "0.99",
+                "--avg_last_n_layers",
+                "1",
+                "--batch_size",
+                "8",
+                "--num_epochs",
+                "100",
+                "--hidden_size",
+                "100",
+                "--beta",
+                "1",
+                "--memory_size",
+                "10000",
             ]
         },
         {

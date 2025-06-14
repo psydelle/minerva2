@@ -29,22 +29,47 @@ class HfModel(torch.nn.Module):
         hidden_size: int,
         beta: float,
         wandb_run,
+        learned_memory_size: Optional[int] = None,
         stored_patterns: Optional[torch.Tensor] = None,
     ):
         super(HfModel, self).__init__()
         self.wandb_run = wandb_run
 
-        learn_lookup = stored_patterns is None
-        self.hopfield = Hopfield(
-            input_size=embed_dim,
-            hidden_size=hidden_size,
-            stored_pattern_size=embed_dim,  # idk why necessary
-            pattern_projection_size=embed_dim,  # idk why necessary
-            scaling=beta,
-            stored_pattern_as_static=learn_lookup,
-            state_pattern_as_static=learn_lookup,
-        )
-        self.stored_patterns = stored_patterns
+        # only one of (learned_memory_size, stored_patterns) should be set
+        assert (
+            (learned_memory_size is not None) ^ (stored_patterns is not None)
+        ), "Either learned_memory_size or stored_patterns must be set, but not both."
+
+        do_lookup = learned_memory_size is not None
+        if do_lookup:
+            self.hopfield = HopfieldLayer(
+                input_size=embed_dim,
+                hidden_size=hidden_size,
+                pattern_size=hidden_size,
+                # idk why stored_pattern_size necessary given pattern_size
+                # possibly bug in hflayers.__init__ line 114
+                stored_pattern_size=hidden_size,
+                # same here? idk
+                pattern_projection_size=hidden_size,
+                quantity=learned_memory_size,
+                scaling=beta,
+                stored_pattern_as_static=True,
+                pattern_projection_as_static=True,
+                lookup_weights_as_separated=False # turn on to separate K and V
+            )
+        else:
+            self.hopfield = Hopfield(
+                input_size=embed_dim,
+                hidden_size=hidden_size,
+                stored_pattern_size=embed_dim,  # idk why necessary
+                pattern_projection_size=embed_dim,  # idk why necessary
+                # stored_pattern_as_static=True,
+                # pattern_projection_as_static=True,
+                scaling=beta,
+            )
+            self.stored_patterns = stored_patterns
+
+        self.do_lookup = do_lookup
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
@@ -53,15 +78,15 @@ class HfModel(torch.nn.Module):
         :param input: data to be processed by the Hopfield network
         :return: result as computed by the Hopfield network
         """
-        if self.stored_patterns is not None:
+        if self.do_lookup:
+            # if no stored patterns are provided, we assume we are learning a lookup table
+            H = self.hopfield(input)
+        else:
             # memory is given
-            p = self.stored_patterns
+            p: torch.Tensor = self.stored_patterns
             # expand batch dimension of p to match stored patterns
             p = p.unsqueeze(0).expand(input.size(0), -1, -1)
             H = self.hopfield((p, input, p))
-        else:
-            # if no stored patterns are provided, we assume we are learning a lookup table
-            H = self.hopfield(input)
 
         return H
 
@@ -265,7 +290,7 @@ def operate(
             {
                 "epoch": epoch,
                 "train/loss": t_loss,
-                "train/failures": t_fails,
+                "train/total_failures": t_fails,
             }
         )
         # Evaluate current model.
@@ -276,6 +301,7 @@ def operate(
         if sampled_item_indices is not None:
             # sampled indices are: [0, 15, 2, 45, 0, 2, 1, ...]
             # If we are learning a lookup table, aggregate item failures by sampled indices
+            # cannot do this because different items have different frequencies
             item_failures, _ = _groupby_mean(
                 item_failures, sampled_item_indices
             )
@@ -295,8 +321,8 @@ def operate(
             {
                 "epoch": epoch,
                 "eval/loss": e_loss,
-                "eval/failures": e_fails,
-                "eval/fail_per_type": eval_df.groupby("type")["is_failure"].sum().to_dict(),
+                "eval/total_failures": e_fails,
+                "eval/avg_frac_fail_per_type": eval_df.groupby("type")["is_failure"].mean().to_dict(),
                 "eval/item_meta": wandb.Table(
                     columns=["item", "type", "verb", "noun", "is_failure", "sim_to_correct"],
                     data=eval_df[
@@ -314,26 +340,6 @@ def operate(
     return pd.DataFrame(losses), pd.DataFrame(failures)
 
 
-def run_iteration_lookup(
-    p,
-    s,
-    device,
-    colloc_embeddings,
-    norm_freq_en,
-    do_equal_frequency,
-    M,
-    embed_dim,
-    forget_prob,
-    minerva_k,
-):
-    """Run training for one participant, using the Hopfield Lookup model.
-
-    For this, we do not need to noise embeddings.
-    Model is trained to output unnoised probe given noisy probes as input.
-    """
-    pass
-
-
 def run_iteration_general(
     p,
     s,
@@ -341,7 +347,6 @@ def run_iteration_general(
     df,  # now the full dataframe with embeddings and metadata
     norm_freq_en,
     do_equal_frequency,
-    M,
     embed_dim,
     forget_prob,
     minerva_k,
@@ -350,7 +355,9 @@ def run_iteration_general(
     hidden_size=100,
     wandb_group_name="hopfield-general-experiment",
     beta=1.0,
+    memory_size=1000,  # number of memory slots. Learned if learn_lookup is True, otherwise used to make noisy memories
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
+    lookup_n_train_samples=10000,  # number of training samples to use for the lookup table
 ):
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -362,9 +369,11 @@ def run_iteration_general(
     random_generator = random.Random(s)
     torch_generator = torch.Generator().manual_seed(s)
 
+    M = lookup_n_train_samples if learn_lookup else memory_size
+
     # Use the dataframe to get all item info and embeddings
     if os.environ.get("MINERVA_DEBUG"):
-        DEBUG_N = 10
+        DEBUG_N = 12
         logging.warning(f"DEBUG MODE: only using first {DEBUG_N} collocations")
         df = df.iloc[:DEBUG_N]
         norm_freq_en = norm_freq_en[:DEBUG_N]
@@ -419,6 +428,9 @@ def run_iteration_general(
             "embed_dim": embed_dim,
             "hidden_size": hidden_size,
             "beta": beta,
+            "memory_size": memory_size,
+            "learn_lookup": learn_lookup,
+            "lookup_n_train_samples": lookup_n_train_samples,
             "participant": p + 1,
             "seed": s,
             "num_epochs": num_epochs,
@@ -433,6 +445,7 @@ def run_iteration_general(
     )
 
     if learn_lookup:
+        # Use noisy matrix as input and clean embeddings as target
         print(
             f"Participant {p+1} | Seed {s} | Running on {device} | Learning a lookup table"
         )
@@ -441,7 +454,7 @@ def run_iteration_general(
             hidden_size=hidden_size,
             beta=beta,
             wandb_run=wandb_run,
-            stored_patterns=None,
+            learned_memory_size=memory_size,
         ).to(device)
         train_x = noisy_mem.to(device)  # use the noisy memory matrix as the input
         # use the clean embeddings as the target
@@ -457,9 +470,11 @@ def run_iteration_general(
             embed_dim,
         ), f"Expected train_y size {(M, embed_dim)}, got {train_y.size()}"
     else:
+        # Use noisy matrix as stored patterns and clean embeddings as input and target
         print(
             f"Participant {p+1} | Seed {s} | Running on {device} | Using a noisy memory matrix of size {noisy_mem.size()}"
         )
+        assert memory_size == noisy_mem.size(0), f"Expected noisy_mem size {memory_size}, got {noisy_mem.size(0)}"
         noisy_mem = noisy_mem.to(device)
         hopfield = HfModel(
             embed_dim=embed_dim,
@@ -521,7 +536,8 @@ def run_iteration_general(
         eval_df=eval_df,
         num_epochs=num_epochs,
         threshold=minerva_k,
-        sampled_item_indices=sampled_item_indices,  # pass the sampled indices for later use
+        # pass the sampled indices for averaging metrics if learning a lookup table
+        sampled_item_indices=sampled_item_indices if learn_lookup else None,
     )
     print(losses, failures)
 
@@ -592,8 +608,9 @@ def run_experiment(
     batch_size=8,
     label=None,
     beta=1.0,
-    M=10000,
+    memory_size=1000,
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
+    lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
@@ -687,7 +704,6 @@ def run_experiment(
             df,  # pass the dataframe with embeddings and all columns
             norm_freq_en,
             do_equal_frequency,
-            M,
             embed_dim,
             forget_prob,
             minerva_k,
@@ -696,32 +712,34 @@ def run_experiment(
             hidden_size=hidden_size,
             wandb_group_name=wandb_group_name,
             beta=beta,
-            learn_lookup=learn_lookup
+            memory_size=memory_size,
+            learn_lookup=learn_lookup,
+            lookup_n_train_samples=lookup_n_train_samples,
         )
         for p, s in enumerate(participant_seeds)
     )
 
-    results_df: pd.DataFrame = pd.concat(results, ignore_index=True)
+    # results_df: pd.DataFrame = pd.concat(results, ignore_index=True)
 
-    # # average the activations over all participants
-    # activations_0 = results_df.groupby("item")["activations_0"].apply(
-    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-    # )
-    # activations_tau = results_df.groupby("item")["activations_tau"].apply(
-    #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-    # )
+    # # # average the activations over all participants
+    # # activations_0 = results_df.groupby("item")["activations_0"].apply(
+    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # # )
+    # # activations_tau = results_df.groupby("item")["activations_tau"].apply(
+    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # # )
 
-    results_df["embedding_model"] = embedding_model
-    results_df["is_noise_embeddings"] = do_noise_embeddings
-    results_df["is_equal_frequency"] = do_equal_frequency
-    results_df["minerva_k"] = minerva_k
-    results_df["avg_last_n_layers"] = avg_last_n_layers
-    results_df["forget_prob"] = forget_prob
+    # results_df["embedding_model"] = embedding_model
+    # results_df["is_noise_embeddings"] = do_noise_embeddings
+    # results_df["is_equal_frequency"] = do_equal_frequency
+    # results_df["minerva_k"] = minerva_k
+    # results_df["avg_last_n_layers"] = avg_last_n_layers
+    # results_df["forget_prob"] = forget_prob
 
-    return results_df
+    # return results_df
 
-    # if os.path.exists(out_file + ".lock"):
-    #     os.remove(out_file + ".lock")
+    # # if os.path.exists(out_file + ".lock"):
+    # #     os.remove(out_file + ".lock")
 
     print("****************************\n\nAll done!\n\n****************************")
 
@@ -854,16 +872,22 @@ if __name__ == "__main__":
         default=1.0,
     )
     parser.add_argument(
-        "--M",
-        help="Number of memory slots (M) for Hopfield network",
+        "--memory_size",
+        help="Number of memory slots (M). Learned if learn_lookup is True, otherwise used to make noisy memories",
         type=int,
-        default=10000,
+        default=1000,
     )
     parser.add_argument(
         "--learn_lookup",
         help="If True, the model learns a lookup table instead of using given memories",
         action="store_true",
         default=False,
+    )
+    parser.add_argument(
+        "--lookup_n_train_samples",
+        help="Number of training samples to use for the lookup table",
+        type=int,
+        default=10000,
     )
 
     args = parser.parse_args()
@@ -892,8 +916,9 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         label=args.label,
         beta=args.beta,
-        M=args.M,
+        memory_size=args.memory_size,
         learn_lookup=args.learn_lookup,
+        lookup_n_train_samples=args.lookup_n_train_samples,
     )
 
     if args.write_activations_json:
