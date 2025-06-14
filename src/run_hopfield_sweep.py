@@ -50,7 +50,7 @@ def run_sweep(sweep_id: str):
             "num_epochs": {"values": [num_epochs]},
             "hidden_size": {"values": [50, 100, 200, 300, 400, 500, 600, 700, 768]},
             "batch_size": {"values": [64]},
-            "memory_size": {"max": 1000, "min": 3},
+            "memory_size": {"values": [3] + list(range(10, 100, 20)) + list(range(100, 1000, 100))},
             "learn_lookup": {"values": [True]},
             "lookup_n_train_samples": {"values": [1000, 5000, 10000]},
         },
