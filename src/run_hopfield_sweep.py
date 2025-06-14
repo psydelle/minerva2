@@ -23,7 +23,14 @@ def run():
     default=None,
     help="W&B sweep ID to use for the experiment. If not provided, a new sweep will be created.",
 )
-def run_sweep(sweep_id: str, lookup=True):
+@click.option(
+    "--lookup/--memories",
+    "lookup",
+    default=True,
+    help="If --lookup, models will be trained with lookup memory. "
+    "If --memories, models will be trained with explicit noisy memories.",
+)
+def run_sweep(sweep_id: str, lookup: bool):
     seed = 0
 
     random.seed(seed)
