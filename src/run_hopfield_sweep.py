@@ -59,7 +59,7 @@ def run_sweep(sweep_id: str):
         # 3: Start the sweep
         sweep_id = wandb.sweep(sweep=sweep_configuration, project="hopfield-experiments")
 
-    wandb.agent(sweep_id, function=run, count=2)
+    wandb.agent(sweep_id, function=run)
 
 if __name__ == "__main__":
     run_sweep()
