@@ -287,13 +287,6 @@ def operate(
         t_loss, t_fails = train_epoch(network, optimiser, data_loader_train, threshold=threshold)
         losses[r"train"].append(t_loss)
         failures[r"train"].append(t_fails)
-        network.wandb_run.log(
-            {
-                "epoch": epoch,
-                "train/loss": t_loss,
-                "train/total_failures": t_fails,
-            }
-        )
         # Evaluate current model.
         eval_df = eval_df.copy()
         e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(
@@ -321,6 +314,8 @@ def operate(
         network.wandb_run.log(
             {
                 "epoch": epoch,
+                "train/loss": t_loss,
+                "train/total_failures": t_fails,
                 "eval/loss": e_loss,
                 "eval/total_failures": e_fails,
                 "eval/avg_frac_fail_per_type": eval_df.groupby("type")["is_failure"].mean().to_dict(),
@@ -330,7 +325,7 @@ def operate(
                         ["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]
                     ].values.tolist(),
                 ),
-            }
+            },
         )
         print(
             f"Epoch {epoch} | Train Loss: {t_loss:.4f} #| Train Failures: {t_fails:.4f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.4f}"

@@ -40,7 +40,7 @@
                 "--hidden_size",
                 "100",
                 "--memory_size",
-                "1000",
+                "20",
                 "--learn_lookup",
                 "--lookup_n_train_samples",
                 "10000",
