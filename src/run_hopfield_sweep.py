@@ -54,12 +54,12 @@ def run_sweep(sweep_id: str):
             "learn_lookup": {"values": [True]},
             "lookup_n_train_samples": {"values": [1000, 5000, 10000]},
         },
-        "early_terminate": {
-            "type": "hyperband",
-            "min_iter": 1,
-            # "max_iter": num_epochs,
-            # "s": 5 # Number of brackets
-        },
+        # "early_terminate": {
+        #     "type": "hyperband",
+        #     "min_iter": 1,
+        #     # "max_iter": num_epochs,
+        #     # "s": 5 # Number of brackets
+        # },
     }
 
     if sweep_id is None:
