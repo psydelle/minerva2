@@ -23,7 +23,7 @@ def run():
     default=None,
     help="W&B sweep ID to use for the experiment. If not provided, a new sweep will be created.",
 )
-def run_sweep(sweep_id: str):
+def run_sweep(sweep_id: str, lookup=True):
     seed = 0
 
     random.seed(seed)
@@ -31,8 +31,6 @@ def run_sweep(sweep_id: str):
     np.random.seed(seed)
 
     # 2: Define the search space
-
-    num_epochs = 100
 
     sweep_configuration = {
         "method": "grid",
@@ -47,12 +45,8 @@ def run_sweep(sweep_id: str):
             "num_workers": {"value": 1},
             "forget_prob": {"values": [0.0, 0.2, 0.4, 0.6, 0.8]},
             "minerva_k": {"values": [0.95, 0.96, 0.97, 0.98, 0.99, 0.995]},
-            "num_epochs": {"values": [num_epochs]},
             "hidden_size": {"values": [50, 100, 200, 300, 400, 500, 600, 700, 768]},
-            "batch_size": {"values": [64]},
-            "memory_size": {"values": [3] + list(range(10, 100, 20)) + list(range(100, 1000, 100))},
-            "learn_lookup": {"values": [True]},
-            "lookup_n_train_samples": {"values": [1000, 5000, 10000]},
+            # "batch_size": {"values": [64]},
         },
         # "early_terminate": {
         #     "type": "hyperband",
@@ -61,6 +55,19 @@ def run_sweep(sweep_id: str):
         #     # "s": 5 # Number of brackets
         # },
     }
+    if lookup:
+        sweep_configuration["parameters"]["batch_size"] = {"values": [64]}
+        sweep_configuration["parameters"]["num_epochs"] = {"values": [100]}
+        sweep_configuration["parameters"]["memory_size"] = {"values": [3] + list(range(10, 100, 20)) + list(range(100, 1000, 100))}
+        sweep_configuration["parameters"]["learn_lookup"] = {"value": True}
+        sweep_configuration["parameters"]["lookup_n_train_samples"] = {"values": [1000, 5000, 10000]}
+    else:
+        sweep_configuration["parameters"]["batch_size"] = {"values": [64]}
+        sweep_configuration["parameters"]["num_epochs"] = {"values": [500]}
+        sweep_configuration["parameters"]["memory_size"] = {"values": [246, 500, 1000, 5000, 10000]}
+        sweep_configuration["parameters"]["learn_lookup"] = {"value": False}
+        sweep_configuration["parameters"]["lookup_n_train_samples"] = {"value": None}
+
 
     if sweep_id is None:
         # 3: Start the sweep
