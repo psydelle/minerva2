@@ -330,8 +330,8 @@ def operate(
                 columns=["item", "type", "verb", "noun", "is_failure", "sim_to_correct"],
                 data=epoch_eval_df[
                     ["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]
-                ].values.tolist(),
-            ),
+                ].values.tolist()
+            ) if epoch == num_epochs - 1 else None,
         }
         # score is the difference between the collocation failure rate and the average of idiom and prod failure rates
         # this is what we use to evaluate how well the model represents humans
