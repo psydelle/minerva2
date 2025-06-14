@@ -39,6 +39,25 @@ def run_sweep(sweep_id: str, lookup: bool):
 
     # 2: Define the search space
 
+    if lookup:
+        num_epochs = 100
+        c = {
+            "batch_size": {"values": [64]},
+            "num_epochs": {"values": [num_epochs]},
+            "memory_size": {"values": [3] + list(range(10, 100, 20)) + list(range(100, 1000, 100))},
+            "learn_lookup": {"value": True},
+            "lookup_n_train_samples": {"values": [1000, 5000, 10000]},
+        }
+    else:
+        num_epochs = 500
+        c = {
+            "batch_size": {"values": [64]},
+            "num_epochs": {"values": [num_epochs]},
+            "memory_size": {"values": [246, 500, 1000, 5000, 10000]},
+            "learn_lookup": {"value": False},
+            "lookup_n_train_samples": {"value": None}
+        }
+
     sweep_configuration = {
         "method": "grid",
         "metric": {"goal": "maximize", "name": "score"},
@@ -53,28 +72,16 @@ def run_sweep(sweep_id: str, lookup: bool):
             "forget_prob": {"values": [0.0, 0.2, 0.4, 0.6, 0.8]},
             "minerva_k": {"values": [0.95, 0.96, 0.97, 0.98, 0.99, 0.995]},
             "hidden_size": {"values": [50, 100, 200, 300, 400, 500, 600, 700, 768]},
-            # "batch_size": {"values": [64]},
+            **c
         },
-        # "early_terminate": {
-        #     "type": "hyperband",
-        #     "min_iter": 1,
-        #     # "max_iter": num_epochs,
-        #     # "s": 5 # Number of brackets
-        # },
+        "early_terminate": {
+            "type": "hyperband",
+            "min_iter": 10,
+            "max_iter": num_epochs,
+            "s": 3, # Number of brackets
+            "eta": 3,  # Reduction factor
+        },
     }
-    if lookup:
-        sweep_configuration["parameters"]["batch_size"] = {"values": [64]}
-        sweep_configuration["parameters"]["num_epochs"] = {"values": [100]}
-        sweep_configuration["parameters"]["memory_size"] = {"values": [3] + list(range(10, 100, 20)) + list(range(100, 1000, 100))}
-        sweep_configuration["parameters"]["learn_lookup"] = {"value": True}
-        sweep_configuration["parameters"]["lookup_n_train_samples"] = {"values": [1000, 5000, 10000]}
-    else:
-        sweep_configuration["parameters"]["batch_size"] = {"values": [64]}
-        sweep_configuration["parameters"]["num_epochs"] = {"values": [500]}
-        sweep_configuration["parameters"]["memory_size"] = {"values": [246, 500, 1000, 5000, 10000]}
-        sweep_configuration["parameters"]["learn_lookup"] = {"value": False}
-        sweep_configuration["parameters"]["lookup_n_train_samples"] = {"value": None}
-
 
     if sweep_id is None:
         # 3: Start the sweep
