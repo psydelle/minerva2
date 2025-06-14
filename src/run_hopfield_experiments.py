@@ -288,6 +288,7 @@ def run_iteration_general(
     batch_size=8,
     hidden_size=100,
     wandb_group_name="hopfield-general-experiment",
+    beta=1.0,
 ):
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -349,7 +350,6 @@ def run_iteration_general(
     # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
     noisy_mem = noisy_mem.to(device)
 
-    beta = 1.0  # Set a default float value for beta for wandb compatibility
     # Pass a group name for wandb grouping (e.g., experiment label or run type)
     wandb_run = wandb.init(
         project="hopfield-experiments",
@@ -492,6 +492,8 @@ def run_experiment(
     hidden_size=100,
     batch_size=8,
     label=None,
+    beta=1.0,
+    M=10000,
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
@@ -509,8 +511,6 @@ def run_experiment(
             kwics = json.load(f)
 
     print("loaded the dataset and normalized the collocational frequencies")
-
-    M = 10000
 
     embeddings_cache_filename = f'data/processed/{embedding_model}_{Path(dataset_to_use).name[:-4]}-last_{avg_last_n_layers}-{"kwics" if kwics else "nokwics"}{"-concat" if do_concat_tokens else ""}{"-" + label if label else ""}.dat'
     os.makedirs(os.path.dirname(embeddings_cache_filename), exist_ok=True)
@@ -595,6 +595,7 @@ def run_experiment(
             batch_size=batch_size,
             hidden_size=hidden_size,
             wandb_group_name=wandb_group_name,
+            beta=beta,
         )
         for p, s in enumerate(participant_seeds)
     )
@@ -739,12 +740,31 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
-
-    random.seed(0)
-    torch.manual_seed(0)
-    np.random.seed(0)
+    parser.add_argument(
+        "--seed",
+        help="Random seed for reproducibility",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--beta",
+        help="Beta parameter for Hopfield network",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--M",
+        help="Number of memory slots (M) for Hopfield network",
+        type=int,
+        default=10000,
+    )
 
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
 
     assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
 
@@ -765,6 +785,8 @@ if __name__ == "__main__":
         hidden_size=args.hidden_size,
         batch_size=args.batch_size,
         label=args.label,
+        beta=args.beta,
+        M=args.M,
     )
 
     if args.write_activations_json:
