@@ -36,7 +36,12 @@
                 "--batch_size",
                 "8",
                 "--num_epochs",
-                "10"
+                "10",
+                "--hidden_size",
+                "768",
+                "--beta",
+                "1",
+                "--learn_lookup"
                 // "--dry_run_dump"
             ]
         },

@@ -34,18 +34,17 @@ class HfModel(torch.nn.Module):
         super(HfModel, self).__init__()
         self.wandb_run = wandb_run
 
-        if stored_patterns is not None:
-            self.hopfield = Hopfield(
-                input_size=embed_dim,
-                hidden_size=hidden_size,
-                stored_pattern_size=embed_dim,  # idk why necessary
-                pattern_projection_size=embed_dim,  # idk why necessary
-                scaling=beta,
-            )
-            self.stored_patterns = stored_patterns
-        else:
-            # learn stored patterns, i.e., "lookup table"
-            pass
+        learn_lookup = stored_patterns is None
+        self.hopfield = Hopfield(
+            input_size=embed_dim,
+            hidden_size=hidden_size,
+            stored_pattern_size=embed_dim,  # idk why necessary
+            pattern_projection_size=embed_dim,  # idk why necessary
+            scaling=beta,
+            stored_pattern_as_static=learn_lookup,
+            state_pattern_as_static=learn_lookup,
+        )
+        self.stored_patterns = stored_patterns
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
@@ -55,14 +54,14 @@ class HfModel(torch.nn.Module):
         :return: result as computed by the Hopfield network
         """
         if self.stored_patterns is not None:
+            # memory is given
             p = self.stored_patterns
             # expand batch dimension of p to match stored patterns
             p = p.unsqueeze(0).expand(input.size(0), -1, -1)
             H = self.hopfield((p, input, p))
         else:
-            # if no stored patterns are provided, we assume this is a lookup table
-            # and we just return the input as output
-            pass
+            # if no stored patterns are provided, we assume we are learning a lookup table
+            H = self.hopfield(input)
 
         return H
 
@@ -140,11 +139,11 @@ def train_epoch(
         item_failures, _, _ = network.calculate_retrieval_failures(
             data, target, threshold=threshold
         )
-        failures.append(item_failures.detach().sum().item())
+        failures.append(item_failures.detach().mean().item())
         losses.append(loss.detach().item())
 
     # Report progress of training procedure.
-    return sum(losses) / len(losses), sum(failures)
+    return sum(losses) / len(losses), sum(failures) / len(failures)
 
 
 def eval_iter(
@@ -173,7 +172,7 @@ def eval_iter(
             _item_failures, _item_sim, _item_predictions = network.calculate_retrieval_failures(
                 eval_x, eval_y, threshold=threshold
             )
-            failures.append(_item_failures.detach().sum().item())
+            failures.append(_item_failures.detach().mean().item())
             losses.append(loss.detach().item())
             item_failures.append(_item_failures.detach().cpu())
             item_sim.append(_item_sim.detach().cpu())
@@ -185,8 +184,53 @@ def eval_iter(
     item_predictions = torch.cat(item_predictions, dim=0)
 
     # Report progress of validation procedure.
-    return sum(losses) / len(losses), sum(failures), item_failures, item_sim, item_predictions
+    return sum(losses) / len(losses), sum(failures) / len(failures), item_failures, item_sim, item_predictions
 
+def _groupby_mean(value:torch.Tensor, labels:torch.LongTensor) -> Tuple[torch.Tensor, torch.LongTensor]:
+    """Group-wise average for (sparse) grouped tensors
+    From https://discuss.pytorch.org/t/groupby-aggregate-mean-in-pytorch/45335/9
+
+    Args:
+        value (torch.Tensor): values to average (# samples, latent dimension)
+        labels (torch.LongTensor): labels for embedding parameters (# samples,)
+
+    Returns:
+        result (torch.Tensor): (# unique labels, latent dimension)
+        new_labels (torch.LongTensor): (# unique labels,)
+
+    Examples:
+        >>> samples = torch.Tensor([
+                             [0.15, 0.15, 0.15],    #-> group / class 1
+                             [0.2, 0.2, 0.2],    #-> group / class 3
+                             [0.4, 0.4, 0.4],    #-> group / class 3
+                             [0.0, 0.0, 0.0]     #-> group / class 0
+                      ])
+        >>> labels = torch.LongTensor([1, 5, 5, 0])
+        >>> result, new_labels = groupby_mean(samples, labels)
+
+        >>> result
+        tensor([[0.0000, 0.0000, 0.0000],
+            [0.1500, 0.1500, 0.1500],
+            [0.3000, 0.3000, 0.3000]])
+
+        >>> new_labels
+        tensor([0, 1, 5])
+    """
+    uniques = labels.unique().tolist()
+    labels = labels.tolist()
+
+    key_val = {key: val for key, val in zip(uniques, range(len(uniques)))}
+    val_key = {val: key for key, val in zip(uniques, range(len(uniques)))}
+
+    labels = torch.LongTensor(list(map(key_val.get, labels)))
+
+    labels = labels.view(labels.size(0), 1).expand(-1, value.size(1))
+
+    unique_labels, labels_count = labels.unique(dim=0, return_counts=True)
+    result = torch.zeros_like(unique_labels, dtype=torch.float).scatter_add_(0, labels, value)
+    result = result / labels_count.float().unsqueeze(1)
+    new_labels = torch.LongTensor(list(map(val_key.get, unique_labels[:, 0].tolist())))
+    return result, new_labels
 
 def operate(
     network: HfModel,
@@ -196,6 +240,7 @@ def operate(
     eval_df: pd.DataFrame,
     num_epochs: int,
     threshold: float,
+    sampled_item_indices: Optional[torch.LongTensor] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Train the specified network by gradient descent using backpropagation.
@@ -206,6 +251,8 @@ def operate(
     :param data_loader_eval: data loader instance providing validation data
     :param eval_df: dataframe containing evaluation metadata (e.g., item types)
     :param num_epochs: amount of epochs to train
+    :param threshold: threshold to be used for evaluation
+    :param sampled_item_indices: indices of items sampled from the training data (for lookup table)
     :return: data frame comprising training as well as evaluation performance
     """
     losses, failures = {r"train": [], r"eval": []}, {r"train": [], r"eval": []}
@@ -223,10 +270,22 @@ def operate(
         )
         # Evaluate current model.
         eval_df = eval_df.copy()
-        e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(network, data_loader_eval, threshold=threshold)
-        assert item_failures.shape[0] == eval_df.shape[0], (
-            f"Expected {eval_df.shape[0]} item failures, got {item_failures.shape[0]}"
+        e_loss, e_fails, item_failures, item_sim, item_predictions = eval_iter(
+            network, data_loader_eval, threshold=threshold
         )
+        if sampled_item_indices is not None:
+            # sampled indices are: [0, 15, 2, 45, 0, 2, 1, ...]
+            # If we are learning a lookup table, aggregate item failures by sampled indices
+            item_failures, _ = _groupby_mean(
+                item_failures, sampled_item_indices
+            )
+            item_sim, _ = _groupby_mean(
+                item_sim, sampled_item_indices
+            )
+
+        assert (
+            item_failures.shape[0] == eval_df.shape[0]
+        ), f"Expected {eval_df.shape[0]} item failures, got {item_failures.shape[0]}"
         eval_df["is_failure"] = item_failures.detach().cpu().numpy()
         eval_df["sim_to_correct"] = item_sim.detach().cpu().numpy()
         # eval_df["item_predictions"] = [p.tolist() for p in item_predictions.detach().cpu()]
@@ -240,12 +299,14 @@ def operate(
                 "eval/fail_per_type": eval_df.groupby("type")["is_failure"].sum().to_dict(),
                 "eval/item_meta": wandb.Table(
                     columns=["item", "type", "verb", "noun", "is_failure", "sim_to_correct"],
-                    data=eval_df[["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]].values.tolist()
+                    data=eval_df[
+                        ["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]
+                    ].values.tolist(),
                 ),
             }
         )
         print(
-            f"Epoch {epoch} | Train Loss: {t_loss:.4f} #| Train Failures: {t_fails:.1f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.1f}"
+            f"Epoch {epoch} | Train Loss: {t_loss:.4f} #| Train Failures: {t_fails:.4f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.4f}"
         )
     network.wandb_run.finish()
 
@@ -289,6 +350,7 @@ def run_iteration_general(
     hidden_size=100,
     wandb_group_name="hopfield-general-experiment",
     beta=1.0,
+    learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
 ):
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -328,7 +390,7 @@ def run_iteration_general(
             torch.arange(n_items),
             torch.multinomial(frequencies, sample_k, replacement=True, generator=torch_generator),
         )
-    )
+    ).long()
     matrix = colloc_bert_embeddings[sampled_item_indices]
 
     assert matrix.size() == (M, embed_dim), "Huh?"
@@ -348,7 +410,6 @@ def run_iteration_general(
     # noisy_mem = torch.where(
     #     noise_mask < L, 0.0, matrix
     # )  # if the noise is less than L, then add gaussian noise, otherwise it is the original matrix
-    noisy_mem = noisy_mem.to(device)
 
     # Pass a group name for wandb grouping (e.g., experiment label or run type)
     wandb_run = wandb.init(
@@ -371,19 +432,56 @@ def run_iteration_general(
         reinit="create_new",
     )
 
-    hopfield = HfModel(
-        embed_dim=embed_dim,
-        hidden_size=hidden_size,
-        beta=beta,
-        wandb_run=wandb_run,
-        stored_patterns=noisy_mem,  # use the noisy memory matrix as the stored patterns
-    ).to(device)
+    if learn_lookup:
+        print(
+            f"Participant {p+1} | Seed {s} | Running on {device} | Learning a lookup table"
+        )
+        hopfield = HfModel(
+            embed_dim=embed_dim,
+            hidden_size=hidden_size,
+            beta=beta,
+            wandb_run=wandb_run,
+            stored_patterns=None,
+        ).to(device)
+        train_x = noisy_mem.to(device)  # use the noisy memory matrix as the input
+        # use the clean embeddings as the target
+        train_y = colloc_bert_embeddings[
+            sampled_item_indices
+        ]
+        assert train_x.size() == (
+            M,
+            embed_dim,
+        ), f"Expected train_x size {(M, embed_dim)}, got {train_x.size()}"
+        assert train_y.size() == (
+            M,
+            embed_dim,
+        ), f"Expected train_y size {(M, embed_dim)}, got {train_y.size()}"
+    else:
+        print(
+            f"Participant {p+1} | Seed {s} | Running on {device} | Using a noisy memory matrix of size {noisy_mem.size()}"
+        )
+        noisy_mem = noisy_mem.to(device)
+        hopfield = HfModel(
+            embed_dim=embed_dim,
+            hidden_size=hidden_size,
+            beta=beta,
+            wandb_run=wandb_run,
+            stored_patterns=noisy_mem,  # use the noisy memory matrix as the stored patterns
+        ).to(device)
 
-    # output = []  # initialize an empty list to store the output
+        train_x = colloc_bert_embeddings  # add a sequence length dimension
+        train_y = train_x.clone()  # use the same embeddings as input
+        assert train_x.size() == (
+            n_items,
+            embed_dim,
+        ), f"Expected train_x size {(n_items, embed_dim)}, got {train_x.size()}"
+        assert train_y.size() == (
+            n_items,
+            embed_dim,
+        ), f"Expected train_y size {(n_items, embed_dim)}, got {train_y.size()}"
 
-    # stack the embeddings into a tensor
-    train_x = colloc_bert_embeddings.unsqueeze_(1)  # add a sequence length dimension
-    train_y = train_x.clone()
+    train_x.unsqueeze_(1)  # add a sequence length dimension
+    train_y.unsqueeze_(1)  # add a sequence length dimension
 
     optimiser = AdamW(params=hopfield.parameters(), lr=5e-4, weight_decay=1e-4)
 
@@ -403,7 +501,7 @@ def run_iteration_general(
     eval_loader = DataLoader(
         eval_data,
         batch_size=batch_size,
-        shuffle=False, # MUST BE FALSE for evaluation
+        shuffle=False,  # MUST BE FALSE for evaluation
         num_workers=0,
         generator=torch_generator,
         # pin_memory=True,
@@ -423,6 +521,7 @@ def run_iteration_general(
         eval_df=eval_df,
         num_epochs=num_epochs,
         threshold=minerva_k,
+        sampled_item_indices=sampled_item_indices,  # pass the sampled indices for later use
     )
     print(losses, failures)
 
@@ -494,6 +593,7 @@ def run_experiment(
     label=None,
     beta=1.0,
     M=10000,
+    learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
 ):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
@@ -596,6 +696,7 @@ def run_experiment(
             hidden_size=hidden_size,
             wandb_group_name=wandb_group_name,
             beta=beta,
+            learn_lookup=learn_lookup
         )
         for p, s in enumerate(participant_seeds)
     )
@@ -758,13 +859,18 @@ if __name__ == "__main__":
         type=int,
         default=10000,
     )
+    parser.add_argument(
+        "--learn_lookup",
+        help="If True, the model learns a lookup table instead of using given memories",
+        action="store_true",
+        default=False,
+    )
 
     args = parser.parse_args()
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-
 
     assert Path(args.dataset_to_use).name == "stimuli_idioms_clean.csv"
 
@@ -787,6 +893,7 @@ if __name__ == "__main__":
         label=args.label,
         beta=args.beta,
         M=args.M,
+        learn_lookup=args.learn_lookup,
     )
 
     if args.write_activations_json:
