@@ -18,7 +18,7 @@ def run():
 @click.option(
     "--id",
     "--sweep_id",
-    dest="sweep_id",
+    "sweep_id",
     type=str,
     default=None,
     help="W&B sweep ID to use for the experiment. If not provided, a new sweep will be created.",
