@@ -27,8 +27,8 @@ class HfModel(torch.nn.Module):
         self,
         embed_dim: int,
         hidden_size: int,
-        beta: float,
         wandb_run,
+        beta: Optional[float]=None,
         learned_memory_size: Optional[int] = None,
         stored_patterns: Optional[torch.Tensor] = None,
     ):
@@ -67,6 +67,7 @@ class HfModel(torch.nn.Module):
                 # pattern_projection_as_static=True,
                 scaling=beta,
             )
+
             self.stored_patterns = stored_patterns
 
         self.do_lookup = do_lookup
@@ -354,7 +355,7 @@ def run_iteration_general(
     batch_size=8,
     hidden_size=100,
     wandb_group_name="hopfield-general-experiment",
-    beta=1.0,
+    beta=None,
     memory_size=1000,  # number of memory slots. Learned if learn_lookup is True, otherwise used to make noisy memories
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples=10000,  # number of training samples to use for the lookup table
@@ -607,7 +608,7 @@ def run_experiment(
     hidden_size=100,
     batch_size=8,
     label=None,
-    beta=1.0,
+    beta=None,
     memory_size=1000,
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
@@ -869,7 +870,7 @@ if __name__ == "__main__":
         "--beta",
         help="Beta parameter for Hopfield network",
         type=float,
-        default=1.0,
+        default=None,
     )
     parser.add_argument(
         "--memory_size",
