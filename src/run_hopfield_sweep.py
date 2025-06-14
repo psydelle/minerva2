@@ -51,7 +51,7 @@ def run_sweep(sweep_id: str, lookup: bool):
     else:
         num_epochs = 500
         c = {
-            "batch_size": {"values": [64]},
+            "batch_size": {"values": [16]},
             "num_epochs": {"values": [num_epochs]},
             "memory_size": {"values": [246, 500, 1000, 5000, 10000]},
             "learn_lookup": {"value": False},
