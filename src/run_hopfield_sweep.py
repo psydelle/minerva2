@@ -15,7 +15,14 @@ def run():
 
 
 @click.command()
-@click.option("--id", "--sweep_id", type=str, default=None, help="W&B sweep ID to use for the experiment. If not provided, a new sweep will be created.")
+@click.option(
+    "--id",
+    "--sweep_id",
+    dest="sweep_id",
+    type=str,
+    default=None,
+    help="W&B sweep ID to use for the experiment. If not provided, a new sweep will be created.",
+)
 def run_sweep(sweep_id: str):
     seed = 0
 
@@ -60,6 +67,7 @@ def run_sweep(sweep_id: str):
         sweep_id = wandb.sweep(sweep=sweep_configuration, project="hopfield-experiments")
 
     wandb.agent(sweep_id, function=run)
+
 
 if __name__ == "__main__":
     run_sweep()
