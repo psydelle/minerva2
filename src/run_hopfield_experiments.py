@@ -390,7 +390,7 @@ def run_iteration_general(
     beta=None,
     memory_size=1000,  # number of memory slots. Learned if learn_lookup is True, otherwise used to make noisy memories
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
-    lookup_n_train_samples=10000,  # number of training samples to use for the lookup table
+    lookup_n_train_samples=None,  # number of training samples to use for the lookup table
     wandb_run=None,  # wandb run object, if None, a new run is created
 ) -> pd.DataFrame:
     """Run training for one participant, using the general Modern Hopfield model.
@@ -403,7 +403,16 @@ def run_iteration_general(
     random_generator = random.Random(s)
     torch_generator = torch.Generator().manual_seed(s)
 
-    M = lookup_n_train_samples if learn_lookup else memory_size
+    if learn_lookup:
+        assert lookup_n_train_samples is not None, (
+            "If learn_lookup is True, lookup_n_train_samples must be set."
+        )
+        M = lookup_n_train_samples
+    else:
+        assert lookup_n_train_samples is None, (
+            "If learn_lookup is False, lookup_n_train_samples must be None."
+        )
+        M = memory_size
 
     # Use the dataframe to get all item info and embeddings
     if os.environ.get("MINERVA_DEBUG"):
@@ -734,7 +743,7 @@ def run_experiment(
     beta=None,
     memory_size=1000,
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
-    lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
+    lookup_n_train_samples: Optional[int] = None,  # number of training samples to use for the lookup table
     only_one_run=False,  # if True, only one run is executed (for sweeps)
     wandb_run=None,
 ):
@@ -913,12 +922,6 @@ if __name__ == "__main__":
         type=float,
     )
     parser.add_argument(
-        "--minerva_max_iter",
-        help="Minerva max_iter parameter",
-        default=300,
-        type=int,
-    )
-    parser.add_argument(
         "--num_workers",
         help="Number of workers to use",
         default=4,
@@ -994,9 +997,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--lookup_n_train_samples",
-        help="Number of training samples to use for the lookup table",
+        help="Number of training samples to use for training the lookup table. "
+        "When learn_lookup is True, the size of the *learned* memory matrix is --memory_size",
         type=int,
-        default=10000,
+        default=None,
     )
 
     args = parser.parse_args()
