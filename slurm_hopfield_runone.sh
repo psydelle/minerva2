@@ -3,9 +3,9 @@
 #SBATCH --partition=ILCC-CDT,ILCC-Standard
 #SBATCH --nodelist=arnold,duflo
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=8000
-#SBATCH --gres=gpu:rtx_2080_ti
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=16000
+#SBATCH --gres=gpu:rtx_2080_ti:4
 #SBATCH --time=48:00:00
 #SBATCH --output="/home/%u/minerva2/slurm_logs/%x_%A-%a.out"
 #dummy-SBATCH --error="/home/%u/minerva2/slurm_logs/%x_%A-%a.err"

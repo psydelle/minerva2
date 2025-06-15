@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 import torch  # for tensors
 from torch.nn.utils import clip_grad_norm_
 from torch.optim import AdamW
@@ -326,21 +326,29 @@ def operate(
             "eval/avg_frac_fail_per_type": epoch_eval_df.groupby("type")["is_failure"]
             .mean()
             .to_dict(),
-            "eval/item_meta": wandb.Table(
-                columns=["item", "type", "verb", "noun", "is_failure", "sim_to_correct"],
-                data=epoch_eval_df[
-                    ["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]
-                ].values.tolist()
-            ) if epoch == num_epochs - 1 else None,
         }
         # score is the difference between the collocation failure rate and the average of idiom and prod failure rates
         # this is what we use to evaluate how well the model represents humans
-        log_dict["score"] = (log_dict["eval/avg_frac_fail_per_type"]["collocation"] - (
-            log_dict["eval/avg_frac_fail_per_type"]["idiom"]
-            + log_dict["eval/avg_frac_fail_per_type"]["prod"]
-        ) / 2)
+        log_dict["score"] = (
+            log_dict["eval/avg_frac_fail_per_type"]["collocation"]
+            - (
+                log_dict["eval/avg_frac_fail_per_type"]["idiom"]
+                + log_dict["eval/avg_frac_fail_per_type"]["prod"]
+            )
+            / 2
+        )
 
-        network.wandb_run.log(log_dict)
+        network.wandb_run.log(log_dict, step=epoch)
+        if epoch == num_epochs - 1:
+            # _df = epoch_eval_df[["item", "type", "verb", "noun", "is_failure", "sim_to_correct"]]
+            network.wandb_run.log(
+                {
+                    "eval/item_meta": wandb.data_types.Table(dataframe=epoch_eval_df),
+                },
+                step=epoch,
+            )
+            # log_dict["eval/item_meta"] = _df
+
         print(
             f"Epoch {epoch} | Train Loss: {t_loss:.4f} | Train Failures: {t_fails:.4f} | Eval Loss: {e_loss:.4f} | Eval Failures: {e_fails:.4f} | Score: {log_dict['score']:.2f}"
         )
@@ -348,6 +356,7 @@ def operate(
 
     # Report progress of training and validation procedures.
     return pd.DataFrame(losses), pd.DataFrame(failures), epoch_eval_df, log_dict
+
 
 class DummyWandbRun:
     """A dummy wandb run for when no_wandb is True."""
@@ -362,6 +371,7 @@ class DummyWandbRun:
 
     def finish(self):
         pass
+
 
 def run_iteration_general(
     p,
@@ -381,8 +391,8 @@ def run_iteration_general(
     memory_size=1000,  # number of memory slots. Learned if learn_lookup is True, otherwise used to make noisy memories
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples=10000,  # number of training samples to use for the lookup table
-    wandb_run = None,  # wandb run object, if None, a new run is created
-):
+    wandb_run=None,  # wandb run object, if None, a new run is created
+) -> pd.DataFrame:
     """Run training for one participant, using the general Modern Hopfield model.
 
     For this, we give the model a noisy memory matrix
@@ -422,7 +432,9 @@ def run_iteration_general(
         sampled_item_indices = torch.cat(
             (
                 torch.arange(n_items),
-                torch.multinomial(frequencies, sample_k, replacement=True, generator=torch_generator),
+                torch.multinomial(
+                    frequencies, sample_k, replacement=True, generator=torch_generator
+                ),
             )
         ).long()
     else:
@@ -555,7 +567,7 @@ def run_iteration_general(
         f"Participant {p+1} | Seed {s} | Running on {device} | Training with {len(train_x)} samples, {len(train_y)} eval samples"
     )
     # train the model
-    losses, failures, eval_df, log_dict = operate(
+    losses, failures, final_eval_df, log_dict = operate(
         network=hopfield,
         optimiser=optimiser,
         data_loader_train=train_loader,
@@ -613,11 +625,28 @@ def run_iteration_general(
     # # results_df["mode"] = "l1"
     # results_df["id"] = s
     # results_df["participant"] = p + 1
+    final_eval_df["participant"] = p + 1
+    final_eval_df["id"] = s
+    final_eval_df["train/loss"] = log_dict["train/loss"]
+    final_eval_df["train/total_failures"] = log_dict["train/total_failures"]
+    final_eval_df["eval/loss"] = log_dict["eval/loss"]
+    final_eval_df["eval/total_failures"] = log_dict["eval/total_failures"]
+    final_eval_df["participant_human_score"] = log_dict["score"]
 
-    return log_dict
+    return final_eval_df
 
 
-def make_data(*, dataset_to_use, kwics_file_to_use, embedding_model: str, do_log_freq: bool, do_concat_tokens: bool, avg_last_n_layers: int, do_noise_embeddings: bool, label: Optional[str] = None):
+def make_data(
+    *,
+    dataset_to_use,
+    kwics_file_to_use,
+    embedding_model: str,
+    do_log_freq: bool,
+    do_concat_tokens: bool,
+    avg_last_n_layers: int,
+    do_noise_embeddings: bool,
+    label: Optional[str] = None,
+):
     ## read in the dataset
     df = pd.read_csv(dataset_to_use)
     dataset = df[["item"]]
@@ -707,7 +736,7 @@ def run_experiment(
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples: int = 10000,  # number of training samples to use for the lookup table
     only_one_run=False,  # if True, only one run is executed (for sweeps)
-    wandb_run=None
+    wandb_run=None,
 ):
     df, norm_freq_en, embed_dim = make_data(
         dataset_to_use=dataset_to_use,
@@ -717,7 +746,7 @@ def run_experiment(
         do_concat_tokens=do_concat_tokens,
         avg_last_n_layers=avg_last_n_layers,
         do_noise_embeddings=do_noise_embeddings,
-        label=label
+        label=label,
     )
     participant_seeds = []
     for _ in range(num_participants):
@@ -746,35 +775,34 @@ def run_experiment(
     if only_one_run:
         # we're in a sweep, so we need to get the config from wandb
         # also, only one participant per run
-        # wandb_run
-        results = run_iteration_general(
-                0,
-                participant_seeds[0],
-                worker_devices[0],
-                df,  # pass the dataframe with embeddings and all columns
-                norm_freq_en,
-                do_equal_frequency,
-                embed_dim,
-                forget_prob,
-                minerva_k,
-                num_epochs=num_epochs,
-                batch_size=batch_size,
-                hidden_size=hidden_size,
-                beta=beta,
-                memory_size=memory_size,
-                learn_lookup=learn_lookup,
-                lookup_n_train_samples=lookup_n_train_samples,
-                wandb_run=wandb_run
-            )
-        results = [results]
+        assert wandb_run is not None, "wandb_run must be provided for sweeps"
+        _r = run_iteration_general(
+            0,
+            participant_seeds[0],
+            worker_devices[0],
+            df,  # pass the dataframe with embeddings and all columns
+            norm_freq_en,
+            do_equal_frequency,
+            embed_dim,
+            forget_prob,
+            minerva_k,
+            num_epochs=num_epochs,
+            batch_size=batch_size,
+            hidden_size=hidden_size,
+            beta=beta,
+            memory_size=memory_size,
+            learn_lookup=learn_lookup,
+            lookup_n_train_samples=lookup_n_train_samples,
+            wandb_run=wandb_run,
+        )
+        results = [_r]
 
     else:
         current_time = pd.Timestamp.now().strftime("%Y-%m-%d_%H-%M-%S")
-        if wandb_group_name is None:
-            # Generate a group name based on the current time if not provided
-            wandb_group_name = f"hopfield-{current_time}"
+        # Generate a group name based on the current time
+        wandb_group_name = f"hopfield-{current_time}"
 
-        results = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
+        results: List[pd.DataFrame] = Parallel(n_jobs=NUM_WORKERS, backend="threading")(
             delayed(run_iteration_general)(
                 p,
                 s,
@@ -795,29 +823,31 @@ def run_experiment(
                 lookup_n_train_samples=lookup_n_train_samples,
             )
             for p, s in enumerate(participant_seeds)
-        )
+        ) # type: ignore
 
-    results_df: pd.DataFrame = pd.DataFrame(results)
+    results_df = pd.concat(results, ignore_index=True)
+    print(f"Results dataframe shape: {results_df.shape}")
+    print(f"Average score: {results_df['participant_human_score'].mean()}")
 
-        # # # average the activations over all participants
-        # # activations_0 = results_df.groupby("item")["activations_0"].apply(
-        # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-        # # )
-        # # activations_tau = results_df.groupby("item")["activations_tau"].apply(
-        # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
-        # # )
+    # # # average the activations over all participants
+    # # activations_0 = results_df.groupby("item")["activations_0"].apply(
+    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # # )
+    # # activations_tau = results_df.groupby("item")["activations_tau"].apply(
+    # #     lambda x: torch.tensor(x.tolist()).mean(dim=0)
+    # # )
 
-        # results_df["embedding_model"] = embedding_model
-        # results_df["is_noise_embeddings"] = do_noise_embeddings
-        # results_df["is_equal_frequency"] = do_equal_frequency
-        # results_df["minerva_k"] = minerva_k
-        # results_df["avg_last_n_layers"] = avg_last_n_layers
-        # results_df["forget_prob"] = forget_prob
+    # results_df["embedding_model"] = embedding_model
+    # results_df["is_noise_embeddings"] = do_noise_embeddings
+    # results_df["is_equal_frequency"] = do_equal_frequency
+    # results_df["minerva_k"] = minerva_k
+    # results_df["avg_last_n_layers"] = avg_last_n_layers
+    # results_df["forget_prob"] = forget_prob
 
-        # return results_df
+    # return results_df
 
-        # # if os.path.exists(out_file + ".lock"):
-        # #     os.remove(out_file + ".lock")
+    # # if os.path.exists(out_file + ".lock"):
+    # #     os.remove(out_file + ".lock")
 
     print("****************************\n\nAll done!\n\n****************************")
     return results_df
@@ -1024,4 +1054,31 @@ if __name__ == "__main__":
     #         # activations_df.to_json(json_file, orient="index")
     #         print(f"Wrote results to {csv_file} and {json_file}")
     #     else:
-    #         print(f"Wrote results to {csv_file}")
+
+    def make_file_stem(args):
+        return "results/hop" + \
+            f"_{'lookup' if args.learn_lookup else 'memories'}" + \
+            f"-{Path(args.dataset_to_use).name[:-4]}" + \
+            f"-{'nokwics' if args.kwics_file_to_use=='none' else 'kwics'}" + \
+            f"-{args.embedding_model}" + \
+            f"-{args.num_participants}p" + \
+            f"-f{args.forget_prob}" + \
+            f"-k{args.minerva_k}" + \
+            f"-ne{args.num_epochs}" + \
+            f"-h{args.hidden_size}" + \
+            f"-b{args.batch_size}" + \
+            f"-m{args.memory_size}" + \
+            f"-lts{args.lookup_n_train_samples}" + \
+            f"-beta_{args.beta}" + \
+            f"{'-noise-' if args.do_noise_embeddings else ''}" + \
+            f"{'-equal_f-' if args.do_equal_frequency else ''}" + \
+            f"{'-logfreq-' if args.do_log_freq else ''}" + \
+            f"{'-concat' if args.concat_tokens else ''}" + \
+            f"-last{args.avg_last_n_layers}" + \
+            f"{'-' + args.label if args.label else ''}"
+
+
+    out_file_stem = make_file_stem(args)
+    csv_file = out_file_stem + ".csv"
+    results_df.to_csv(csv_file, index=False)
+    print(f"Wrote results to {csv_file}")
