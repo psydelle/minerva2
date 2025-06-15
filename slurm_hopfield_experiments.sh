@@ -92,7 +92,7 @@ else
     exit 1
 fi
 mkdir -p $WANDB_DIR
-python run_hopfield_experiments.py $*
+python src/run_hopfield_experiments.py $*
 
 # Set the PID var so that the trap can use it
 PID="$!"
