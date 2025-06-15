@@ -75,7 +75,24 @@ trap 'echo signal received in BATCH!; kill -15 "${PID}"; wait "${PID}";' SIGINT 
 
 # start script in background and get its PID
 # Note: $* traps all arguments passed to the script
-WANDB_DIR=/disk/scratch/s2191163/minerva_wandb python src/run_hopfield_sweep.py $*
+
+# if directory /disk/scratch_fast exists, use it
+if [ -d /disk/scratch_fast ]; then
+    echo "Using /disk/scratch_fast for wandb"
+    export WANDB_DIR=/disk/scratch_fast/s2191163/minerva_wandb
+elif [ -d /disk/scratch ]; then
+    echo "Using /disk/scratch for wandb"
+    export WANDB_DIR=/disk/scratch/s2191163/minerva_wandb
+elif [ -d /disk/scratch2 ]; then
+    echo "Using /disk/scratch2 for wandb"
+    export WANDB_DIR=/disk/scratch2/s2191163/minerva_wandb
+else
+    # break if no scratch disk is available
+    echo "No scratch disk available, exiting."
+    exit 1
+fi
+mkdir -p $WANDB_DIR
+python src/run_hopfield_sweep.py $*
 
 # Set the PID var so that the trap can use it
 PID="$!"
