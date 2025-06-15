@@ -1003,6 +1003,8 @@ if __name__ == "__main__":
         default=None,
     )
 
+    wandb.login()
+
     args = parser.parse_args()
 
     random.seed(args.seed)

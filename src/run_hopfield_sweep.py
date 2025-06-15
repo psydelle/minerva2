@@ -91,4 +91,5 @@ def run_sweep(sweep_id: str, lookup: bool):
 
 
 if __name__ == "__main__":
+    wandb.login()
     run_sweep()
