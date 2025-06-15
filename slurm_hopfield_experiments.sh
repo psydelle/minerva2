@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=MINERVA_hopfield_sweep
 #SBATCH --partition=ILCC-CDT,ILCC-Standard
-#SBATCH --nodelist=arnold,duflo
+#SBATCH --nodelist=strickland,duflo
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=10
 #SBATCH --mem=16000
 #SBATCH --gres=gpu:rtx_2080_ti:4
 #SBATCH --time=48:00:00
