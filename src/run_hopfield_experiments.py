@@ -31,9 +31,11 @@ class HfModel(torch.nn.Module):
         beta: Optional[float] = None,
         learned_memory_size: Optional[int] = None,
         stored_patterns: Optional[torch.Tensor] = None,
+        loss="mse"
     ):
         super(HfModel, self).__init__()
         self.wandb_run = wandb_run
+        self.loss = loss
 
         # only one of (learned_memory_size, stored_patterns) should be set
         assert (learned_memory_size is not None) ^ (
@@ -130,7 +132,12 @@ class HfModel(torch.nn.Module):
         H = self.forward(input)
 
         # Compute objective of current model.
-        loss = torch.nn.functional.mse_loss(H, target.float())
+        if self.loss == "mse":
+            loss = torch.nn.functional.mse_loss(H, target.float())
+        else:
+            loss = torch.nn.functional.cosine_embedding_loss(
+                H.squeeze(1), target.float().squeeze(1), torch.ones(H.size(0), device=H.device)
+            )
 
         return loss
 
@@ -392,6 +399,7 @@ def run_iteration_general(
     learn_lookup=False,  # if True, the model learns a lookup table instead of using given memories
     lookup_n_train_samples=None,  # number of training samples to use for the lookup table
     wandb_run=None,  # wandb run object, if None, a new run is created
+    loss="mse"
 ) -> pd.DataFrame:
     """Run training for one participant, using the general Modern Hopfield model.
 
@@ -496,13 +504,14 @@ def run_iteration_general(
 
     if learn_lookup:
         # Use noisy matrix as input and clean embeddings as target
-        print(f"Participant {p+1} | Seed {s} | Running on {device} | Learning a lookup table")
+        print(f"Participant {p+1} | Seed {s} | Running on {device} | Learning a lookup table with {M} samples | loss {loss}")
         hopfield = HfModel(
             embed_dim=embed_dim,
             hidden_size=hidden_size,
             beta=beta,
             wandb_run=wandb_run,
             learned_memory_size=memory_size,
+            loss=loss
         ).to(device)
         train_x = noisy_mem.to(device)  # use the noisy memory matrix as the input
         # use the clean embeddings as the target
@@ -518,7 +527,7 @@ def run_iteration_general(
     else:
         # Use noisy matrix as stored patterns and clean embeddings as input and target
         print(
-            f"Participant {p+1} | Seed {s} | Running on {device} | Using a noisy memory matrix of size {noisy_mem.size()}"
+            f"Participant {p+1} | Seed {s} | Running on {device} | Using a noisy memory of size {noisy_mem.size()} | loss {loss}"
         )
         assert memory_size == noisy_mem.size(
             0
@@ -530,6 +539,7 @@ def run_iteration_general(
             beta=beta,
             wandb_run=wandb_run,
             stored_patterns=noisy_mem,  # use the noisy memory matrix as the stored patterns
+            loss=loss
         ).to(device)
 
         train_x = colloc_bert_embeddings  # add a sequence length dimension
@@ -746,6 +756,7 @@ def run_experiment(
     lookup_n_train_samples: Optional[int] = None,  # number of training samples to use for the lookup table
     only_one_run=False,  # if True, only one run is executed (for sweeps)
     wandb_run=None,
+    loss="mse"
 ):
     df, norm_freq_en, embed_dim = make_data(
         dataset_to_use=dataset_to_use,
@@ -803,6 +814,7 @@ def run_experiment(
             learn_lookup=learn_lookup,
             lookup_n_train_samples=lookup_n_train_samples,
             wandb_run=wandb_run,
+            loss=loss,
         )
         results = [_r]
 
@@ -830,6 +842,7 @@ def run_experiment(
                 memory_size=memory_size,
                 learn_lookup=learn_lookup,
                 lookup_n_train_samples=lookup_n_train_samples,
+                loss=loss
             )
             for p, s in enumerate(participant_seeds)
         ) # type: ignore
@@ -1002,6 +1015,12 @@ if __name__ == "__main__":
         type=int,
         default=None,
     )
+    parser.add_argument(
+        "--loss",
+        help="Loss function to use (mse or cosine)",
+        default="mse",
+        choices=["mse", "cosine"],
+    )
 
     wandb.login()
 
@@ -1034,6 +1053,7 @@ if __name__ == "__main__":
         memory_size=args.memory_size,
         learn_lookup=args.learn_lookup,
         lookup_n_train_samples=args.lookup_n_train_samples,
+        loss=args.loss,
     )
 
     # if args.write_activations_json:
@@ -1081,6 +1101,7 @@ if __name__ == "__main__":
             f"{'-logfreq-' if args.do_log_freq else ''}" + \
             f"{'-concat' if args.concat_tokens else ''}" + \
             f"-last{args.avg_last_n_layers}" + \
+            f"-loss_{args.loss}" + \
             f"{'-' + args.label if args.label else ''}"
 
 
