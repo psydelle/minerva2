@@ -498,6 +498,7 @@ def run_iteration_general(
                 "forget_prob": forget_prob,
                 "minerva_k": minerva_k,
                 "do_equal_frequency": do_equal_frequency,
+                "loss": loss
             },
             reinit="create_new",
         )
